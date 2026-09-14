@@ -2942,23 +2942,30 @@ function sendTestNotification() {
   }
 
   try {
-    new Notification(
-      "NEET OS — Test Reminder",
-      {
-        body:
-          "Notifications are working correctly."
-      }
-    );
-
-  } catch (error) {
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.ready.then((registration) => {
+            registration.showNotification(
+                "NEET OS — Test Reminder",
+                {
+                    body: "Notifications are working correctly.",
+                    icon: "./icons/icon-192.png",
+                    badge: "./icons/icon-192.png",
+                    data: {
+                        url: "./index.html"
+                    }
+                }
+            );
+        });
+    }
+} catch (error) {
     console.error(
-      error
+        error
     );
 
     alert(
-      "Notification could not be shown. Try opening NEET OS with Live Server."
+        "Notification could not be shown. Please allow notifications and try again."
     );
-  }
+}
 }
 
 
@@ -3290,20 +3297,32 @@ function maybeNotifySchedule() {
         );
 
         try {
-          new Notification(
-            "NEET OS — Upcoming Task",
-            {
-              body:
-                `${task.name} starts in ${difference} minute${difference === 1 ? "" : "s"}.`
-            }
-          );
+    if ("serviceWorker" in navigator) {
 
-        } catch (error) {
-          console.error(
-            "Notification error:",
-            error
-          );
-        }
+        navigator.serviceWorker.ready.then((registration) => {
+
+            registration.showNotification(
+                "NEET OS — Upcoming Task",
+                {
+                    body:
+                        `${task.name} starts in ${difference} minute${difference === 1 ? "" : "s"}.`,
+                    icon: "./icons/icon-192.png",
+                    badge: "./icons/icon-192.png",
+                    data: {
+                        url: "./index.html"
+                    }
+                }
+            );
+
+        });
+
+    }
+} catch (error) {
+    console.error(
+        "Notification error:",
+        error
+    );
+}
       }
     }
   );

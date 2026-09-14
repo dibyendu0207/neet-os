@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#07111f">
+
+    <title>NEET OS</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+
+        /* =====================================================
+           PAGE SYSTEM
+        ===================================================== */
+
+        .app-page {
+            display: none !important;
+        }
+
+        .app-page.active-page {
+            display: block !important;
+        }
+
+
+        /* =====================================================
+           SYLLABUS
+        ===================================================== */
+
+        .syllabus-subject-card {
+            background: rgba(255,255,255,0.045);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .syllabus-subject-header {
+            padding: 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .syllabus-subject-header h3 {
+            margin: 0 0 5px 0;
+            font-size: 20px;
+        }
+
+        .syllabus-subject-header p {
+            margin: 0;
+            opacity: 0.65;
+            font-size: 13px;
+        }
+
+        .syllabus-unit {
+            padding: 15px 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .syllabus-unit:last-child {
+            border-bottom: none;
+        }
+
+        .syllabus-unit-title {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .syllabus-unit-title span:first-child {
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .syllabus-status {
+            flex-shrink: 0;
+            font-size: 12px;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: rgba(0,255,200,0.08);
+            color: rgba(255,255,255,0.7);
+        }
+
+        .syllabus-topic {
+            margin-top: 7px;
+            font-size: 12px;
+            line-height: 1.55;
+            opacity: 0.55;
+        }
+
+
+        /* =====================================================
+           STATS
+        ===================================================== */
+
+        .simple-card {
+            background: rgba(255,255,255,0.045);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 18px;
+            margin-bottom: 15px;
+        }
+
+        .simple-card h3 {
+            margin: 0 0 12px 0;
+        }
+
+        .simple-card p {
+            margin: 6px 0;
+            opacity: 0.75;
+        }
+
+        .stat-row-page {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 13px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .stat-row-page:last-child {
+            border-bottom: none;
+        }
+
+        .stat-row-page strong {
+            white-space: nowrap;
+        }
+
+
+        /* =====================================================
+           MORE
+        ===================================================== */
+
+        .feature-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .feature-row:last-child {
+            border-bottom: none;
+        }
+
+        .feature-row span:last-child {
+            opacity: 0.6;
+            font-size: 13px;
+            text-align: right;
+        }
+
+
+        /* =====================================================
+           MOBILE
+        ===================================================== */
+
+        @media (max-width: 600px) {
+
+            .syllabus-unit {
+                padding: 14px;
+            }
+
+            .syllabus-subject-header {
+                padding: 15px;
+            }
+
+            .feature-row {
+                font-size: 14px;
+            }
+
+        }
+
+    </style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#07111f">
+</head>
+
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+            .then(registration => {
+                console.log('NEET OS Service Worker registered:', registration.scope);
+            })
+            .catch(error => {
+                console.error('NEET OS Service Worker registration failed:', error);
+            });
+    });
+}
+</script>
+<body>
+
+
+<div id="app">
+
+
+    <!-- =====================================================
+         HEADER
+    ===================================================== -->
+
+    <header class="app-header">
+
+        <div class="header-left">
+
+            <button
+                class="icon-button"
+                id="menuButton"
+            >
+                ☰
+            </button>
+
+            <div>
+
+                <h1>NEET OS</h1>
+
+                <p>
+                    Discipline Today, Doctor Tomorrow
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <button
+            class="icon-button"
+            id="notificationButton"
+        >
+            🔔
+        </button>
+
+    </header>
+
+
+
+    <!-- =====================================================
+         MAIN
+    ===================================================== -->
+
+    <main id="mainContent">
+
+
+
+        <!-- =================================================
+             HOME
+        ================================================== -->
+
+        <section
+            id="homeSection"
+            class="app-page active-page"
+            data-section="home"
+        >
+
+
+            <!-- TODAY -->
+
+            <section class="today-header">
+
+                <div>
+
+                    <h2>Today</h2>
+
+                    <p id="todayDate">
+                        Monday, 14 September 2026
+                    </p>
+
+                </div>
+
+
+                <div class="day-badge">
+                    Week 1 • Day 1
+                </div>
+
+            </section>
+
+
+
+            <!-- DAILY PROGRESS -->
+
+            <section class="progress-card">
+
+
+                <div class="progress-ring">
+
+                    <div class="progress-ring-inner">
+
+                        <strong id="progressPercent">
+                            0%
+                        </strong>
+
+                        <span>
+                            Today's Progress
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="progress-details">
+
+
+                    <div class="stat-row">
+
+                        <span>
+                            Study Time
+                        </span>
+
+                        <strong id="studyTime">
+                            0h 00m
+                        </strong>
+
+                    </div>
+
+
+                    <div class="progress-line">
+
+                        <div
+                            class="progress-line-fill"
+                            id="studyProgress"
+                        ></div>
+
+                    </div>
+
+
+                    <div class="stat-row">
+
+                        <span>
+                            Tasks
+                        </span>
+
+                        <strong id="taskProgress">
+                            0 / 8
+                        </strong>
+
+                    </div>
+
+
+                    <div class="progress-line">
+
+                        <div
+                            class="progress-line-fill"
+                            id="taskProgressBar"
+                        ></div>
+
+                    </div>
+
+
+                    <div class="stat-row">
+
+                        <span>
+                            Questions
+                        </span>
+
+                        <strong id="questionProgress">
+                            0 / 180
+                        </strong>
+
+                    </div>
+
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 TODAY'S SCHEDULE
+            ================================================== -->
+
+            <section class="schedule-section">
+
+
+                <div class="section-title">
+
+                    <h2>
+                        Today's Schedule
+                    </h2>
+
+                    <button id="editRoutineButton">
+                        Edit
+                    </button>
+
+                </div>
+
+
+
+                <!-- 1 -->
+
+                <div class="task-card">
+
+                    <div class="task-icon physics">
+                        📘
+                    </div>
+
+                    <div class="task-info">
+
+                        <div class="task-time">
+                            08:45 AM – 11:00 AM
+                        </div>
+
+                        <div class="task-title">
+                            Physics Class
+                        </div>
+
+                        <div class="task-meta">
+                            Yakeen 3.0 • Online Class
+                        </div>
+
+                    </div>
+
+                    <button class="start-button">
+                        Start
+                    </button>
+
+                </div>
+
+
+
+                <!-- 2 -->
+
+                <div class="task-card">
+
+                    <div class="task-icon biology">
+                        🌿
+                    </div>
+
+                    <div class="task-info">
+
+                        <div class="task-time">
+                            11:00 AM – 01:00 PM
+                        </div>
+
+                        <div class="task-title">
+                            Biology Class
+                        </div>
+
+                        <div class="task-meta">
+                            Yakeen 3.0 • Online Class
+                        </div>
+
+                    </div>
+
+                    <button class="start-button">
+                        Start
+                    </button>
+
+                </div>
+
+
+
+                <!-- 3 -->
+
+                <div class="task-card">
+
+                    <div class="task-icon chemistry">
+                        ⚗️
+                    </div>
+
+                    <div class="task-info">
+
+                        <div class="task-time">
+                            01:15 PM – 03:30 PM
+                        </div>
+
+                        <div class="task-title">
+                            Chemistry Class
+                        </div>
+
+                        <div class="task-meta">
+                            Yakeen 3.0 • Online Class
+                        </div>
+
+                    </div>
+
+                    <button class="start-button">
+                        Start
+                    </button>
+
+                </div>
+
+
+
+                <!-- 4 -->
+
+                <div class="task-card">
+
+                    <div class="task-icon questions">
+                        📝
+                    </div>
+
+                    <div class="task-info">
+
+                        <div class="task-time">
+                            03:45 PM – 04:30 PM
+                        </div>
+
+                        <div class="task-title">
+                            Physics Questions
+                        </div>
+
+                        <div class="task-meta">
+                            Minimum 30 Questions
+                        </div>
+
+                    </div>
+
+                    <button class="start-button">
+                        Start
+                    </button>
+
+                </div>
+
+
+
+                <!-- 5 -->
+
+                <div class="task-card">
+
+                    <div class="task-icon revision">
+                        📚
+                    </div>
+
+                    <div class="task-info">
+
+                        <div class="task-time">
+                            06:50 PM – 08:50 PM
+                        </div>
+
+                        <div class="task-title">
+                            Chemistry Revision + Questions
+                        </div>
+
+                        <div class="task-meta">
+                            Minimum 50 Questions
+                        </div>
+
+                    </div>
+
+                    <button class="start-button">
+                        Start
+                    </button>
+
+                </div>
+
+
+
+                <!-- 6 -->
+
+                <div class="task-card">
+
+                    <div class="task-icon biology">
+                        🌱
+                    </div>
+
+                    <div class="task-info">
+
+                        <div class="task-time">
+                            09:00 PM – 10:30 PM
+                        </div>
+
+                        <div class="task-title">
+                            Biology Revision + NCERT + Class Questions
+                        </div>
+
+                        <div class="task-meta">
+                            Class Revision • NCERT • Questions
+                        </div>
+
+                    </div>
+
+                    <button class="start-button">
+                        Start
+                    </button>
+
+                </div>
+
+
+
+                <!-- 7 -->
+
+                <div class="task-card">
+
+                    <div class="task-icon questions">
+                        ✏️
+                    </div>
+
+                    <div class="task-info">
+
+                        <div class="task-time">
+                            11:00 PM – 12:30 AM
+                        </div>
+
+                        <div class="task-title">
+                            Physics Question Practice
+                        </div>
+
+                        <div class="task-meta">
+                            Minimum 50 Questions
+                        </div>
+
+                    </div>
+
+                    <button class="start-button">
+                        Start
+                    </button>
+
+                </div>
+
+
+
+                <!-- 8 -->
+
+                <div class="task-card">
+
+                    <div class="task-icon repair">
+                        🌙
+                    </div>
+
+                    <div class="task-info">
+
+                        <div class="task-time">
+                            12:30 AM – 02:00 AM
+                        </div>
+
+                        <div class="task-title">
+                            Daily Repair
+                        </div>
+
+                        <div class="task-meta">
+                            Revision • Doubt • Error • Backlog
+                        </div>
+
+                    </div>
+
+                    <button class="start-button">
+                        Start
+                    </button>
+
+                </div>
+
+
+            </section>
+
+        </section>
+
+
+
+
+        <!-- =================================================
+             SYLLABUS
+        ================================================== -->
+
+      <section
+    id="syllabusSection"
+    class="app-page"
+    data-section="syllabus"
+>
+</section>
+
+
+
+
+        <!-- =================================================
+             STATS
+        ================================================== -->
+
+        <section
+            id="statsSection"
+            class="app-page"
+            data-section="stats"
+        >
+
+
+            <section class="today-header">
+
+                <div>
+
+                    <h2>
+                        Statistics
+                    </h2>
+
+                    <p>
+                        Your NEET OS Performance
+                    </p>
+
+                </div>
+
+            </section>
+
+
+
+            <div class="simple-card">
+
+
+                <div class="stat-row-page">
+
+                    <span>
+                        Total Study Time
+                    </span>
+
+                    <strong id="statsStudyTime">
+                        0h 00m
+                    </strong>
+
+                </div>
+
+
+                <div class="stat-row-page">
+
+                    <span>
+                        Tasks Completed
+                    </span>
+
+                    <strong id="statsTasks">
+                        0 / 8
+                    </strong>
+
+                </div>
+
+
+                <div class="stat-row-page">
+
+                    <span>
+                        Questions Solved
+                    </span>
+
+                    <strong id="statsQuestions">
+                        0
+                    </strong>
+
+                </div>
+
+
+                <div class="stat-row-page">
+
+                    <span>
+                        Current Streak
+                    </span>
+
+                    <strong>
+                        0 Days
+                    </strong>
+
+                </div>
+
+
+            </div>
+
+
+
+            <div class="simple-card">
+
+                <h3>
+                    Subject Breakdown
+                </h3>
+
+
+                <div class="stat-row-page">
+
+                    <span>
+                        Physics
+                    </span>
+
+                    <strong>
+                        0h 00m
+                    </strong>
+
+                </div>
+
+
+                <div class="stat-row-page">
+
+                    <span>
+                        Chemistry
+                    </span>
+
+                    <strong>
+                        0h 00m
+                    </strong>
+
+                </div>
+
+
+                <div class="stat-row-page">
+
+                    <span>
+                        Biology
+                    </span>
+
+                    <strong>
+                        0h 00m
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="simple-card">
+
+                <h3>
+                    Daily Progress
+                </h3>
+
+                <p>
+                    Your completed tasks, study time and question practice will be tracked here.
+                </p>
+
+            </div>
+
+
+
+            <div class="simple-card">
+
+                <h3>
+                    30-Day Performance
+                </h3>
+
+                <p>
+                    Your 30-day study consistency and progress report will appear here.
+                </p>
+
+            </div>
+
+
+        </section>
+
+
+
+
+        <!-- =================================================
+             MORE
+        ================================================== -->
+
+        <section
+            id="moreSection"
+            class="app-page"
+            data-section="more"
+        >
+
+
+            <section class="today-header">
+
+                <div>
+
+                    <h2>
+                        More
+                    </h2>
+
+                    <p>
+                        NEET OS Tools & Settings
+                    </p>
+
+                </div>
+
+            </section>
+
+
+
+            <div class="simple-card">
+
+
+                <div class="feature-row">
+
+                    <span>
+                        📅 Daily Routine
+                    </span>
+
+                    <span>
+                        Manage timetable
+                    </span>
+
+                </div>
+
+
+                <div class="feature-row">
+
+                    <span>
+                        ⚠️ Missed Track Repair
+                    </span>
+
+                    <span>
+                        Repair missed work
+                    </span>
+
+                </div>
+
+
+                <div class="feature-row">
+
+                    <span>
+                        🔥 Streak
+                    </span>
+
+                    <span>
+                        0 Days
+                    </span>
+
+                </div>
+
+
+                <div class="feature-row">
+
+                    <span>
+                        🌙 Sleep Tracking
+                    </span>
+
+                    <span>
+                        Track sleep
+                    </span>
+
+                </div>
+
+
+                <div class="feature-row">
+
+                    <span>
+                        📊 30-Day Report
+                    </span>
+
+                    <span>
+                        View report
+                    </span>
+
+                </div>
+
+
+                <div class="feature-row">
+
+                    <span>
+                        🏆 Personal Best
+                    </span>
+
+                    <span>
+                        Best study day
+                    </span>
+
+                </div>
+
+
+                <div class="feature-row">
+
+                    <span>
+                        🔔 Notifications
+                    </span>
+
+                    <span>
+                        Reminders
+                    </span>
+
+                </div>
+
+
+                <div class="feature-row">
+
+                    <span>
+                        ☁️ Backup
+                    </span>
+
+                    <span>
+                        Export / Import
+                    </span>
+
+                </div>
+
+
+                <div class="feature-row">
+
+                    <span>
+                        ⚙️ Settings
+                    </span>
+
+                    <span>
+                        App settings
+                    </span>
+
+                </div>
+
+
+            </div>
+
+
+        </section>
+
+
+    </main>
+
+
+
+
+    <!-- =====================================================
+         BOTTOM NAVIGATION
+    ===================================================== -->
+
+    <nav class="bottom-nav">
+
+
+        <button
+            class="nav-item active"
+            data-nav="home"
+            data-page="home"
+        >
+
+            <span>
+                🏠
+            </span>
+
+            <small>
+                Home
+            </small>
+
+        </button>
+
+
+        <button
+            class="nav-item"
+            data-nav="syllabus"
+            data-page="syllabus"
+        >
+
+            <span>
+                📖
+            </span>
+
+            <small>
+                Syllabus
+            </small>
+
+        </button>
+
+
+        <button
+            class="nav-item"
+            data-nav="stats"
+            data-page="stats"
+        >
+
+            <span>
+                📊
+            </span>
+
+            <small>
+                Stats
+            </small>
+
+        </button>
+
+
+        <button
+            class="nav-item"
+            data-nav="more"
+            data-page="more"
+        >
+
+            <span>
+                ☰
+            </span>
+
+            <small>
+                More
+            </small>
+
+        </button>
+
+
+    </nav>
+
+
+</div>
+
+
+
+
+<!-- =====================================================
+     SESSION POPUP
+===================================================== -->
+
+<div
+    class="modal-overlay"
+    id="sessionModal"
+>
+
+
+    <div class="session-modal">
+
+
+        <div class="modal-header">
+
+
+            <div>
+
+                <h2 id="modalTitle">
+                    Start Study Session
+                </h2>
+
+                <p id="modalTaskTime">
+                    Select today's chapter
+                </p>
+
+            </div>
+
+
+            <button
+                class="modal-close"
+                id="modalClose"
+            >
+                ×
+            </button>
+
+
+        </div>
+
+
+
+
+        <!-- CLASS OPTIONS -->
+
+        <div
+            id="classOptions"
+            class="modal-section"
+        >
+
+
+            <label>
+                Select Chapter
+            </label>
+
+
+            <select id="chapterSelect">
+
+
+                <option value="">
+                    Choose a chapter
+                </option>
+
+
+                <option>
+                    Physics and Measurement
+                </option>
+
+                <option>
+                    Kinematics
+                </option>
+
+                <option>
+                    Laws of Motion
+                </option>
+
+                <option>
+                    Work, Energy and Power
+                </option>
+
+                <option>
+                    Rotational Motion
+                </option>
+
+                <option>
+                    Gravitation
+                </option>
+
+                <option>
+                    Properties of Solids and Liquids
+                </option>
+
+                <option>
+                    Thermodynamics
+                </option>
+
+                <option>
+                    Kinetic Theory of Gases
+                </option>
+
+                <option>
+                    Oscillations and Waves
+                </option>
+
+                <option>
+                    Electrostatics
+                </option>
+
+                <option>
+                    Current Electricity
+                </option>
+
+                <option>
+                    Magnetic Effects of Current and Magnetism
+                </option>
+
+                <option>
+                    Electromagnetic Induction and Alternating Currents
+                </option>
+
+                <option>
+                    Electromagnetic Waves
+                </option>
+
+                <option>
+                    Optics
+                </option>
+
+                <option>
+                    Dual Nature of Matter and Radiation
+                </option>
+
+                <option>
+                    Atoms and Nuclei
+                </option>
+
+                <option>
+                    Electronic Devices
+                </option>
+
+                <option>
+                    Experimental Skills
+                </option>
+
+
+            </select>
+
+
+            <label class="checkbox-row">
+
+                <input
+                    type="checkbox"
+                    id="chapterFinished"
+                >
+
+                <span>
+                    Chapter Finished
+                </span>
+
+            </label>
+
+
+        </div>
+
+
+
+
+        <!-- SELF STUDY OPTIONS -->
+
+        <div
+            id="selfStudyOptions"
+            class="modal-section"
+        >
+
+
+            <div class="target-box">
+
+
+                <span>
+                    Minimum Target
+                </span>
+
+
+                <strong id="minimumQuestions">
+                    30 Questions
+                </strong>
+
+
+            </div>
+
+
+            <label>
+                Questions Practiced
+            </label>
+
+
+            <input
+                type="number"
+                id="questionTarget"
+                min="0"
+                placeholder="Enter questions practiced"
+            >
+
+
+        </div>
+
+
+
+
+        <button
+            class="modal-start-button"
+            id="modalStartButton"
+        >
+            Start Session
+        </button>
+
+
+    </div>
+
+
+</div>
+
+
+
+
+<!-- =====================================================
+     PAGE NAVIGATION FIX
+     
+     IMPORTANT:
+     This runs BEFORE app.js.
+     It always hides all pages first and then opens only
+     the selected page.
+===================================================== -->
+
+<script>
+
+(function () {
+
+    function openNEETOSPage(pageName) {
+
+        const target =
+            pageName === "statistics"
+                ? "stats"
+                : pageName;
+
+
+        const pages =
+            document.querySelectorAll(".app-page");
+
+
+        const navItems =
+            document.querySelectorAll(".bottom-nav .nav-item");
+
+
+        pages.forEach(function (page) {
+
+            const pageNameValue =
+                page.getAttribute("data-section");
+
+
+            if (pageNameValue === target) {
+
+                page.classList.add("active-page");
+
+                page.style.display = "block";
+
+            } else {
+
+                page.classList.remove("active-page");
+
+                page.style.display = "none";
+
+            }
+
+        });
+
+
+        navItems.forEach(function (item) {
+
+            const itemTarget =
+                item.getAttribute("data-nav");
+
+
+            if (itemTarget === target) {
+
+                item.classList.add("active");
+
+            } else {
+
+                item.classList.remove("active");
+
+            }
+
+        });
+
+
+        window.scrollTo(
+            {
+                top: 0,
+                behavior: "smooth"
+            }
+        );
+
+    }
+
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+
+
+            const navItems =
+                document.querySelectorAll(
+                    ".bottom-nav .nav-item"
+                );
+
+
+            /* Initial page */
+
+            openNEETOSPage("home");
+
+
+            /* Navigation */
+
+            navItems.forEach(function (item) {
+
+                item.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+
+
+                        const target =
+                            item.getAttribute("data-nav");
+
+
+                        openNEETOSPage(target);
+
+                    },
+                    true
+                );
+
+            });
+
+
+            window.NEETOS_OPEN_PAGE =
+                openNEETOSPage;
+
+        }
+    );
+
+})();
+
+</script>
+
+
+
+
+<!-- =====================================================
+     MAIN APP JAVASCRIPT
+===================================================== -->
+
+<script src="app.js"></script>
+
+
+</body>
+
+</html>

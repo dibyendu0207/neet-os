@@ -2919,7 +2919,7 @@ async function requestNotificationPermission() {
    TEST NOTIFICATION
 ========================================================= */
 
-function sendTestNotification() {
+async function sendTestNotification() {
   if (
     !("Notification" in window)
   ) {
@@ -2941,29 +2941,60 @@ function sendTestNotification() {
     return;
   }
 
-  try {
-    if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.ready.then((registration) => {
-            registration.showNotification(
-                "NEET OS — Test Reminder",
-                {
-                    body: "Notifications are working correctly.",
-                    icon: "./icons/icon-192.png",
-                    badge: "./icons/icon-192.png",
-                    data: {
-                        url: "./index.html"
-                    }
-                }
-            );
-        });
+     try {
+    if (!("Notification" in window)) {
+        alert("This browser does not support notifications.");
+        return;
     }
+
+    if (Notification.permission !== "granted") {
+        const permission =
+            await Notification.requestPermission();
+
+        if (permission !== "granted") {
+            alert("Notification permission was not granted.");
+            return;
+        }
+    }
+
+    let registration =
+        await navigator.serviceWorker.getRegistration();
+
+    if (!registration) {
+        registration =
+            await navigator.serviceWorker.register(
+                "./service-worker.js"
+            );
+    }
+
+    registration =
+        await navigator.serviceWorker.ready;
+
+    await registration.showNotification(
+        "NEET OS — Test Reminder",
+        {
+            body:
+                "Notifications are working correctly.",
+            icon:
+                "./icons/icon-192.png",
+            badge:
+                "./icons/icon-192.png",
+            data: {
+                url: "./index.html"
+            }
+        }
+    );
+
 } catch (error) {
+
     console.error(
+        "Notification test failed:",
         error
     );
 
     alert(
-        "Notification could not be shown. Please allow notifications and try again."
+        "Notification test failed: " +
+        error.message
     );
 }
 }

@@ -70,6 +70,13 @@ const tasks = [
     end: "02:00",
     type: "repair",
     subject: "Mixed"
+  },
+  {
+    name: "Self Study",
+    start: "00:00",
+    end: "23:59",
+    type: "self-study",
+    subject: "Mixed"
   }
 ];
 
@@ -267,6 +274,10 @@ function shortDuration(seconds) {
 ========================================================= */
 
 function isTaskInWindow(task) {
+  if (task.type === "self-study") {
+    return true;
+  }
+
   const now = getCurrentMinutes();
 
   const start = timeToMinutes(task.start);
@@ -350,6 +361,11 @@ function saveHistory(history) {
 }
 
 
+function isProgressTask(index) {
+  return tasks[index]?.type !== "self-study";
+}
+
+
 function createSnapshot(currentData) {
   if (!currentData || !currentData.date) {
     return null;
@@ -386,7 +402,8 @@ function createSnapshot(currentData) {
     tasks.reduce(
       (sum, _, index) =>
         sum +
-        (currentData.completed?.[index]
+        (isProgressTask(index) &&
+        currentData.completed?.[index]
           ? 1
           : 0),
       0
@@ -1181,6 +1198,7 @@ function startTask(
   */
 
   if (
+    task.type !== "self-study" &&
     !ignoreTime &&
     !isTaskInWindow(task)
   ) {
@@ -1208,7 +1226,8 @@ function startTask(
     task.type === "class" ||
     task.type === "questions" ||
     task.type === "revision" ||
-    task.type === "biology"
+    task.type === "biology" ||
+    task.type === "self-study"
   ) {
     openTaskModal(index);
 
@@ -1372,22 +1391,24 @@ function setupTaskButtons() {
 ========================================================= */
 
 function updateProgress() {
-  const completed =
-    tasks.reduce(
-      (sum, _, index) =>
-        sum +
-        (data.completed[index]
-          ? 1
-          : 0),
-      0
-    );
+  const progressTasks = tasks.filter(
+    (_, index) => isProgressTask(index)
+  );
+
+  const completed = progressTasks.reduce(
+    (sum, task) => {
+      const index = tasks.indexOf(task);
+      return sum + (data.completed[index] ? 1 : 0);
+    },
+    0
+  );
+
+  const totalTasks = progressTasks.length;
 
   const percentage =
-    Math.round(
-      (completed /
-        tasks.length) *
-        100
-    );
+    totalTasks > 0
+      ? Math.round((completed / totalTasks) * 100)
+      : 0;
 
   const studySeconds =
     getTotalStudySeconds();
@@ -1402,7 +1423,7 @@ function updateProgress() {
 
   if ($("taskProgress")) {
     $("taskProgress").textContent =
-      `${completed} / ${tasks.length}`;
+      `${completed} / ${totalTasks}`;
   }
 
   if ($("taskProgressBar")) {
@@ -1410,27 +1431,19 @@ function updateProgress() {
       percentage + "%";
   }
 
-  /*
-     12 hour visual study-time bar.
-  */
-
   if ($("studyProgress")) {
     $("studyProgress").style.width =
       Math.min(
         100,
         Math.round(
-          (studySeconds /
-            (12 * 3600)) *
-            100
+          (studySeconds / (12 * 3600)) * 100
         )
       ) + "%";
   }
 
   if ($("studyTime")) {
     $("studyTime").textContent =
-      shortDuration(
-        studySeconds
-      );
+      shortDuration(studySeconds);
   }
 
   if ($("questionProgress")) {
@@ -1449,10 +1462,17 @@ function updateStats() {
     getTotalStudySeconds();
 
   const completed =
-    tasks.filter(
-      (_, index) =>
-        data.completed[index]
-    ).length;
+    tasks.reduce(
+      (sum, _, index) =>
+        sum +
+        (isProgressTask(index) && data.completed[index]
+          ? 1
+          : 0),
+      0
+    );
+
+  const totalTasks =
+    tasks.filter((_, index) => isProgressTask(index)).length;
 
   const questions =
     getTotalQuestions();
@@ -1466,7 +1486,7 @@ function updateStats() {
 
   if ($("statsTasks")) {
     $("statsTasks").textContent =
-      `${completed} / ${tasks.length}`;
+      `${completed} / ${totalTasks}`;
   }
 
   if ($("statsQuestions")) {
@@ -2306,6 +2326,7 @@ function openMissedTasks() {
             item.index;
 
           if (
+            !isProgressTask(index) ||
             data.completed[index] ||
             data.activeTask === index
           ) {
@@ -2907,7 +2928,7 @@ async function requestNotificationPermission() {
     );
 
     alert(
-      "Chrome did not allow notification permission here. Try opening NEET OS with Live Server."
+      "Chrome did not allow notification permission here. Please allow notifications for NEET OS."
     );
 
     return false;
@@ -2941,62 +2962,62 @@ async function sendTestNotification() {
     return;
   }
 
-     try {
+  try {
     if (!("Notification" in window)) {
-        alert("This browser does not support notifications.");
-        return;
+      alert("This browser does not support notifications.");
+      return;
     }
 
     if (Notification.permission !== "granted") {
-        const permission =
-            await Notification.requestPermission();
+      const permission =
+        await Notification.requestPermission();
 
-        if (permission !== "granted") {
-            alert("Notification permission was not granted.");
-            return;
-        }
+      if (permission !== "granted") {
+        alert("Notification permission was not granted.");
+        return;
+      }
     }
 
     let registration =
-        await navigator.serviceWorker.getRegistration();
+      await navigator.serviceWorker.getRegistration();
 
     if (!registration) {
-        registration =
-            await navigator.serviceWorker.register(
-                "./service-worker.js"
-            );
+      registration =
+        await navigator.serviceWorker.register(
+          "./service-worker.js"
+        );
     }
 
     registration =
-        await navigator.serviceWorker.ready;
+      await navigator.serviceWorker.ready;
 
     await registration.showNotification(
-        "NEET OS — Test Reminder",
-        {
-            body:
-                "Notifications are working correctly.",
-            icon:
-                "./icons/icon-192.png",
-            badge:
-                "./icons/icon-192.png",
-            data: {
-                url: "./index.html"
-            }
+      "NEET OS — Test Reminder",
+      {
+        body:
+          "Notifications are working correctly.",
+        icon:
+          "./icons/icon-192.png",
+        badge:
+          "./icons/icon-192.png",
+        data: {
+          url: "./index.html"
         }
+      }
     );
 
-} catch (error) {
+  } catch (error) {
 
     console.error(
-        "Notification test failed:",
-        error
+      "Notification test failed:",
+      error
     );
 
     alert(
-        "Notification test failed: " +
-        error.message
+      "Notification test failed: " +
+      error.message
     );
-}
+  }
 }
 
 
@@ -3005,6 +3026,10 @@ async function sendTestNotification() {
 ========================================================= */
 
 function reminderDifference(task) {
+  if (task.type === "self-study") {
+    return Infinity;
+  }
+
   const current =
     getCurrentMinutes();
 
@@ -3061,6 +3086,7 @@ function openNotificationPanel() {
       )
       .filter(
         item =>
+          item.task.type !== "self-study" &&
           item.difference >= 0 &&
           item.difference <= 180
       )
@@ -3258,105 +3284,74 @@ function openNotificationPanel() {
    AUTOMATIC NOTIFICATIONS
 ========================================================= */
 
-function maybeNotifySchedule() {
-  const settings =
-    getSettings();
+async function maybeNotifySchedule() {
+  const settings = getSettings();
 
-  if (
-    !settings.notifications
-  ) {
+  if (!settings.notifications) {
     return;
   }
 
   if (
-    !("Notification" in window)
+    !("Notification" in window) ||
+    Notification.permission !== "granted"
   ) {
     return;
   }
 
-  if (
-    Notification.permission !==
-    "granted"
-  ) {
+  if (!("serviceWorker" in navigator)) {
     return;
   }
 
-  tasks.forEach(
-    (task, index) => {
-      /*
-         Don't notify completed task.
-      */
+  let registration;
 
-      if (
-        data.completed[index]
-      ) {
-        return;
-      }
+  try {
+    registration = await navigator.serviceWorker.ready;
+  } catch (error) {
+    console.error("Service worker is not ready:", error);
+    return;
+  }
 
-      const difference =
-        reminderDifference(
-          task
-        );
+  for (const [index, task] of tasks.entries()) {
+    if (
+      task.type === "self-study" ||
+      data.completed[index]
+    ) {
+      continue;
+    }
 
-      /*
-         Reminder window:
-         10 minutes before
-         until task starts.
+    const difference = reminderDifference(task);
 
-         This is intentionally
-         NOT an exact-minute check.
-      */
+    if (difference < 0 || difference > 10) {
+      continue;
+    }
 
-      if (
-        difference >= 0 &&
-        difference <= 10
-      ) {
-        const key =
-          `neetOSNotify:${getStudyDayKey()}:${index}`;
+    const key =
+      `neetOSNotify:${getStudyDayKey()}:${index}`;
 
-        if (
-          localStorage.getItem(
-            key
-          )
-        ) {
-          return;
+    if (localStorage.getItem(key)) {
+      continue;
+    }
+
+    localStorage.setItem(key, String(Date.now()));
+
+    try {
+      await registration.showNotification(
+        "NEET OS — Upcoming Task",
+        {
+          body:
+            `${task.name} starts in ${difference} minute${difference === 1 ? "" : "s"}.`,
+          icon: "./icons/icon-192.png",
+          badge: "./icons/icon-192.png",
+          data: {
+            url: "./index.html"
+          }
         }
-
-        localStorage.setItem(
-          key,
-          String(Date.now())
-        );
-
-        try {
-    if ("serviceWorker" in navigator) {
-
-        navigator.serviceWorker.ready.then((registration) => {
-
-            registration.showNotification(
-                "NEET OS — Upcoming Task",
-                {
-                    body:
-                        `${task.name} starts in ${difference} minute${difference === 1 ? "" : "s"}.`,
-                    icon: "./icons/icon-192.png",
-                    badge: "./icons/icon-192.png",
-                    data: {
-                        url: "./index.html"
-                    }
-                }
-            );
-
-        });
-
+      );
+    } catch (error) {
+      localStorage.removeItem(key);
+      console.error("Notification error:", error);
     }
-} catch (error) {
-    console.error(
-        "Notification error:",
-        error
-    );
-}
-      }
-    }
-  );
+  }
 }
 
 
@@ -3943,7 +3938,7 @@ setInterval(
        Notifications
     */
 
-    maybeNotifySchedule();
+    void maybeNotifySchedule();
 
   },
   1000
@@ -3997,291 +3992,5522 @@ window.addEventListener(
     }
   }
 );/* =========================================================
-   NEET OS — ROBUST DATA STORAGE UPGRADE
-   IndexedDB + localStorage compatibility mirror
-   ========================================================= */
+   END OF DAY / HISTORY UTILITIES
+========================================================= */
+
+function getRecordForDate(key) {
+  if (!key) {
+    return null;
+  }
+
+  if (
+    data &&
+    data.date === key
+  ) {
+    return createSnapshot(data);
+  }
+
+  const history =
+    getHistory();
+
+  return (
+    history.find(
+      record =>
+        record &&
+        record.date === key
+    ) || null
+  );
+}
+
+
+function getLastNDates(count = 30) {
+  const result = [];
+
+  let d =
+    new Date();
+
+  for (
+    let i = 0;
+    i < count;
+    i++
+  ) {
+    result.push(
+      dateKey(d)
+    );
+
+    d.setDate(
+      d.getDate() - 1
+    );
+  }
+
+  return result;
+}
+
+
+function calculateDayScore(record) {
+  if (!record) {
+    return 0;
+  }
+
+  const completed =
+    Number(
+      record.completedCount || 0
+    );
+
+  const questions =
+    Number(
+      record.totalQuestions || 0
+    );
+
+  const studySeconds =
+    Number(
+      record.totalStudySeconds || 0
+    );
+
+  /*
+     Score is a simple internal
+     consistency indicator.
+  */
+
+  const taskScore =
+    Math.min(
+      100,
+      (completed / 8) * 100
+    );
+
+  const questionScore =
+    Math.min(
+      100,
+      (questions / 180) * 100
+    );
+
+  const studyScore =
+    Math.min(
+      100,
+      (studySeconds / (10 * 3600)) *
+        100
+    );
+
+  return Math.round(
+    taskScore * 0.4 +
+    questionScore * 0.3 +
+    studyScore * 0.3
+  );
+}
+
+
+/* =========================================================
+   WEEK CALCULATION
+========================================================= */
+
+function getWeekInfo(key = calendarDayKey()) {
+  const day =
+    dayNumber(key);
+
+  return {
+    day,
+    week:
+      Math.ceil(day / 7),
+    dayInWeek:
+      ((day - 1) % 7) + 1
+  };
+}
+
+
+function getWeekLabel(key = calendarDayKey()) {
+  const info =
+    getWeekInfo(key);
+
+  return (
+    `Week ${info.week} • Day ${info.day}`
+  );
+}
+
+
+/* =========================================================
+   HOME HEADER UPDATE
+========================================================= */
+
+function updateHomeHeader() {
+  const key =
+    calendarDayKey();
+
+  const info =
+    getWeekInfo(key);
+
+  /*
+     Possible existing elements.
+     We update whichever ones
+     exist in the current HTML.
+  */
+
+  const selectors = [
+    "#weekText",
+    "#weekNumber",
+    ".week-number",
+    ".week-label"
+  ];
+
+  selectors.forEach(
+    selector => {
+      document
+        .querySelectorAll(selector)
+        .forEach(
+          element => {
+            element.textContent =
+              `Week ${info.week}`;
+          }
+        );
+    }
+  );
+
+  document
+    .querySelectorAll(
+      "#dayText, #dayNumber, .day-number, .day-label"
+    )
+    .forEach(
+      element => {
+        element.textContent =
+          `Day ${info.day}`;
+      }
+    );
+}
+
+
+/* =========================================================
+   DAILY PROGRESS DETAILS
+========================================================= */
+
+function getCompletedTaskCount() {
+  if (!data) {
+    return 0;
+  }
+
+  return tasks.reduce(
+    (count, _, index) =>
+      count +
+      (
+        isProgressTask(index) &&
+        data.completed[index]
+          ? 1
+          : 0
+      ),
+    0
+  );
+}
+
+
+function getIncompleteTaskCount() {
+  return Math.max(
+    0,
+    8 -
+      getCompletedTaskCount()
+  );
+}
+
+
+function getTaskQuestionCount(index) {
+  return Number(
+    data?.questionCounts?.[index] ||
+      0
+  );
+}
+
+
+function getSubjectStudySeconds(subject) {
+  return tasks.reduce(
+    (total, task, index) => {
+      if (
+        task.subject !== subject
+      ) {
+        return total;
+      }
+
+      return (
+        total +
+        getTaskStudySeconds(
+          index
+        )
+      );
+    },
+    0
+  );
+}
+
+
+/* =========================================================
+   HOME DASHBOARD
+========================================================= */
+
+function updateHomeDashboard() {
+  const completed =
+    getCompletedTaskCount();
+
+  const total =
+    tasks.filter(
+      (_, index) =>
+        isProgressTask(index)
+    ).length;
+
+  const percentage =
+    total
+      ? Math.round(
+          (completed / total) *
+            100
+        )
+      : 0;
+
+  const studySeconds =
+    getTotalStudySeconds();
+
+  const questions =
+    getTotalQuestions();
+
+  /*
+     Main progress percentage.
+  */
+
+  document
+    .querySelectorAll(
+      "[data-progress-percent]"
+    )
+    .forEach(
+      element => {
+        element.textContent =
+          percentage + "%";
+      }
+    );
+
+  /*
+     Completed / total.
+  */
+
+  document
+    .querySelectorAll(
+      "[data-task-count]"
+    )
+    .forEach(
+      element => {
+        element.textContent =
+          `${completed} / ${total}`;
+      }
+    );
+
+  /*
+     Study time.
+  */
+
+  document
+    .querySelectorAll(
+      "[data-study-time]"
+    )
+    .forEach(
+      element => {
+        element.textContent =
+          shortDuration(
+            studySeconds
+          );
+      }
+    );
+
+  /*
+     Questions.
+  */
+
+  document
+    .querySelectorAll(
+      "[data-question-count]"
+    )
+    .forEach(
+      element => {
+        element.textContent =
+          questions;
+      }
+    );
+
+  /*
+     Progress bars.
+  */
+
+  document
+    .querySelectorAll(
+      "[data-progress-bar]"
+    )
+    .forEach(
+      element => {
+        element.style.width =
+          percentage + "%";
+      }
+    );
+
+  /*
+     Subject-wise time.
+  */
+
+  document
+    .querySelectorAll(
+      "[data-subject]"
+    )
+    .forEach(
+      element => {
+        const subject =
+          element.dataset.subject;
+
+        element.textContent =
+          shortDuration(
+            getSubjectStudySeconds(
+              subject
+            )
+          );
+      }
+    );
+
+  /*
+     Current active task.
+  */
+
+  document
+    .querySelectorAll(
+      "[data-active-task]"
+    )
+    .forEach(
+      element => {
+        if (
+          data.activeTask ===
+          null
+        ) {
+          element.textContent =
+            "No active session";
+        } else {
+          element.textContent =
+            tasks[
+              data.activeTask
+            ]?.name ||
+            "Study session";
+        }
+      }
+    );
+}
+
+
+/* =========================================================
+   ACTIVE TIMER DISPLAY
+========================================================= */
+
+function updateActiveTimer() {
+  if (
+    !data ||
+    data.activeTask ===
+      null
+  ) {
+    return;
+  }
+
+  const index =
+    data.activeTask;
+
+  const seconds =
+    getTaskStudySeconds(
+      index
+    );
+
+  const formatted =
+    formatTimer(
+      seconds
+    );
+
+  const timer =
+    document.querySelector(
+      `#timer-${index}`
+    );
+
+  if (timer) {
+    timer.textContent =
+      formatted;
+  }
+
+  document
+    .querySelectorAll(
+      "[data-live-timer]"
+    )
+    .forEach(
+      element => {
+        element.textContent =
+          formatted;
+      }
+    );
+}
+
+
+/* =========================================================
+   TASK STATUS TEXT
+========================================================= */
+
+function taskStatusText(index) {
+  const task =
+    tasks[index];
+
+  if (!task) {
+    return "";
+  }
+
+  if (
+    data.activeTask ===
+    index
+  ) {
+    return "Running now";
+  }
+
+  if (
+    data.completed[index]
+  ) {
+    return "Completed";
+  }
+
+  if (
+    task.type ===
+    "self-study"
+  ) {
+    return "Available anytime";
+  }
+
+  if (
+    isTaskInWindow(task)
+  ) {
+    return "Available now";
+  }
+
+  return `Scheduled: ${formatRange(task)}`;
+}
+
+
+function updateTaskStatusLabels() {
+  document
+    .querySelectorAll(
+      "[data-task-status]"
+    )
+    .forEach(
+      element => {
+        const index =
+          Number(
+            element.dataset.taskStatus
+          );
+
+        element.textContent =
+          taskStatusText(
+            index
+          );
+      }
+    );
+}
+
+
+/* =========================================================
+   DAILY SUMMARY
+========================================================= */
+
+function buildDailySummary() {
+  const completed =
+    getCompletedTaskCount();
+
+  const questions =
+    getTotalQuestions();
+
+  const studySeconds =
+    getTotalStudySeconds();
+
+  const score =
+    calculateDayScore(
+      createSnapshot(data)
+    );
+
+  return {
+    date:
+      data?.date ||
+      getStudyDayKey(),
+
+    completed,
+
+    totalTasks:
+      8,
+
+    questions,
+
+    studySeconds,
+
+    score
+  };
+}
+
+
+function openDailySummary() {
+  const summary =
+    buildDailySummary();
+
+  modalBox(
+    "Today's Summary",
+
+    `
+      <div class="neetos-list">
+
+        <div class="neetos-item">
+          📅 Study day:
+          <b>
+            ${esc(summary.date)}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          ✅ Tasks:
+          <b>
+            ${summary.completed}
+            / ${summary.totalTasks}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          ⏱️ Study time:
+          <b>
+            ${shortDuration(
+              summary.studySeconds
+            )}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          📝 Questions:
+          <b>
+            ${summary.questions}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          📊 Daily score:
+          <b>
+            ${summary.score}%
+          </b>
+        </div>
+
+      </div>
+    `
+  );
+}
+
+
+/* =========================================================
+   SUNDAY TEST
+========================================================= */
+
+function getSundayTestData() {
+  return (
+    data?.sundayTest || {
+      attempted: false,
+      total: 0,
+      correct: 0,
+      incorrect: 0,
+      skipped: 0,
+      marks: 0,
+      notes: ""
+    }
+  );
+}
+
+
+function saveSundayTest(test) {
+  data.sundayTest = {
+    ...getSundayTestData(),
+    ...test,
+    updatedAt:
+      Date.now()
+  };
+
+  saveData();
+
+  updateStats();
+}
+
+
+function openSundayTest() {
+  const test =
+    getSundayTestData();
+
+  const html =
+    `
+      <div class="neetos-list">
+
+        <label>
+          Total Questions
+
+          <input
+            id="sundayTotal"
+            type="number"
+            min="0"
+            value="${Number(
+              test.total || 0
+            )}"
+          >
+
+        </label>
+
+        <label>
+          Correct
+
+          <input
+            id="sundayCorrect"
+            type="number"
+            min="0"
+            value="${Number(
+              test.correct || 0
+            )}"
+          >
+
+        </label>
+
+        <label>
+          Incorrect
+
+          <input
+            id="sundayIncorrect"
+            type="number"
+            min="0"
+            value="${Number(
+              test.incorrect || 0
+            )}"
+          >
+
+        </label>
+
+        <label>
+          Skipped
+
+          <input
+            id="sundaySkipped"
+            type="number"
+            min="0"
+            value="${Number(
+              test.skipped || 0
+            )}"
+          >
+
+        </label>
+
+        <label>
+          Marks
+
+          <input
+            id="sundayMarks"
+            type="number"
+            value="${Number(
+              test.marks || 0
+            )}"
+          >
+
+        </label>
+
+        <label>
+          Analysis / Notes
+
+          <input
+            id="sundayNotes"
+            type="text"
+            value="${esc(
+              test.notes || ""
+            )}"
+          >
+
+        </label>
+
+      </div>
+    `;
+
+  modalBox(
+    "Sunday Test Analysis",
+    html,
+    [
+      {
+        label:
+          "Save Test",
+
+        primary:
+          true,
+
+        onClick:
+          () => {
+            const total =
+              Math.max(
+                0,
+                Number(
+                  $("sundayTotal")
+                    ?.value || 0
+                )
+              );
+
+            const correct =
+              Math.max(
+                0,
+                Number(
+                  $("sundayCorrect")
+                    ?.value || 0
+                )
+              );
+
+            const incorrect =
+              Math.max(
+                0,
+                Number(
+                  $("sundayIncorrect")
+                    ?.value || 0
+                )
+              );
+
+            const skipped =
+              Math.max(
+                0,
+                Number(
+                  $("sundaySkipped")
+                    ?.value || 0
+                )
+              );
+
+            const marks =
+              Number(
+                $("sundayMarks")
+                  ?.value || 0
+              );
+
+            const notes =
+              $("sundayNotes")
+                ?.value || "";
+
+            saveSundayTest({
+              attempted:
+                total > 0,
+
+              total,
+
+              correct,
+
+              incorrect,
+
+              skipped,
+
+              marks,
+
+              notes
+            });
+
+            closeOverlay();
+
+            alert(
+              "Sunday test analysis saved."
+            );
+          }
+      }
+    ]
+  );
+}
+
+
+/* =========================================================
+   SUBJECT PERFORMANCE
+========================================================= */
+
+function getSubjectQuestions(subject) {
+  return tasks.reduce(
+    (sum, task, index) => {
+      if (
+        task.subject !==
+        subject
+      ) {
+        return sum;
+      }
+
+      return (
+        sum +
+        getTaskQuestionCount(
+          index
+        )
+      );
+    },
+    0
+  );
+}
+
+
+function getSubjectTaskCount(subject) {
+  return tasks.reduce(
+    (sum, task, index) => {
+      if (
+        task.subject !==
+        subject
+      ) {
+        return sum;
+      }
+
+      return (
+        sum +
+        (
+          isProgressTask(index) &&
+          data.completed[index]
+            ? 1
+            : 0
+        )
+      );
+    },
+    0
+  );
+}
+
+
+function openSubjectStats(subject) {
+  const seconds =
+    getSubjectStudySeconds(
+      subject
+    );
+
+  const questions =
+    getSubjectQuestions(
+      subject
+    );
+
+  const completed =
+    getSubjectTaskCount(
+      subject
+    );
+
+  modalBox(
+    `${subject} Statistics`,
+
+    `
+      <div class="neetos-list">
+
+        <div class="neetos-item">
+          Study time:
+          <b>
+            ${shortDuration(
+              seconds
+            )}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Questions:
+          <b>
+            ${questions}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Completed sessions:
+          <b>
+            ${completed}
+          </b>
+        </div>
+
+      </div>
+    `
+  );
+}
+
+
+/* =========================================================
+   SUBJECT BUTTONS
+========================================================= */
+
+function setupSubjectStatsButtons() {
+  document
+    .querySelectorAll(
+      "[data-open-subject]"
+    )
+    .forEach(
+      button => {
+        if (
+          button.dataset.neetosBound
+        ) {
+          return;
+        }
+
+        button.dataset.neetosBound =
+          "1";
+
+        button.addEventListener(
+          "click",
+          event => {
+            event.preventDefault();
+
+            openSubjectStats(
+              button.dataset.openSubject
+            );
+          }
+        );
+      }
+    );
+}
+
+
+/* =========================================================
+   SLEEP DURATION
+========================================================= */
+
+function minutesFromTime(time) {
+  if (!time) {
+    return null;
+  }
+
+  const [h, m] =
+    time
+      .split(":")
+      .map(Number);
+
+  if (
+    Number.isNaN(h) ||
+    Number.isNaN(m)
+  ) {
+    return null;
+  }
+
+  return h * 60 + m;
+}
+
+
+function calculateSleepDuration(
+  sleepTime,
+  wakeTime
+) {
+  const sleep =
+    minutesFromTime(
+      sleepTime
+    );
+
+  const wake =
+    minutesFromTime(
+      wakeTime
+    );
+
+  if (
+    sleep === null ||
+    wake === null
+  ) {
+    return null;
+  }
+
+  let duration =
+    wake - sleep;
+
+  if (
+    duration <= 0
+  ) {
+    duration += 1440;
+  }
+
+  return duration;
+}
+
+
+function formatSleepDuration(minutes) {
+  if (
+    minutes === null ||
+    minutes === undefined
+  ) {
+    return "—";
+  }
+
+  const h =
+    Math.floor(
+      minutes / 60
+    );
+
+  const m =
+    minutes % 60;
+
+  return (
+    `${h}h ${String(m).padStart(2, "0")}m`
+  );
+}
+
+
+/* =========================================================
+   SLEEP SUMMARY
+========================================================= */
+
+function getSleepSummary() {
+  const sleep =
+    data?.sleep;
+
+  if (!sleep) {
+    return null;
+  }
+
+  const duration =
+    calculateSleepDuration(
+      sleep.sleepTime,
+      sleep.wakeTime
+    );
+
+  return {
+    ...sleep,
+    duration
+  };
+}
+
+
+/* =========================================================
+   HISTORY ANALYTICS
+========================================================= */
+
+function getHistoryWithCurrent() {
+  const history =
+    getHistory();
+
+  const current =
+    createSnapshot(data);
+
+  if (!current) {
+    return history;
+  }
+
+  const index =
+    history.findIndex(
+      record =>
+        record.date ===
+        current.date
+    );
+
+  if (index >= 0) {
+    history[index] =
+      current;
+  } else {
+    history.push(
+      current
+    );
+  }
+
+  return history.sort(
+    (a, b) =>
+      String(a.date)
+        .localeCompare(
+          String(b.date)
+        )
+  );
+}
+
+
+function getAverageStudySeconds(
+  days = 7
+) {
+  const records =
+    getHistoryWithCurrent()
+      .slice(-days);
+
+  if (!records.length) {
+    return 0;
+  }
+
+  const total =
+    records.reduce(
+      (sum, record) =>
+        sum +
+        Number(
+          record.totalStudySeconds ||
+            0
+        ),
+      0
+    );
+
+  return total /
+    records.length;
+}
+
+
+function getAverageQuestions(
+  days = 7
+) {
+  const records =
+    getHistoryWithCurrent()
+      .slice(-days);
+
+  if (!records.length) {
+    return 0;
+  }
+
+  const total =
+    records.reduce(
+      (sum, record) =>
+        sum +
+        Number(
+          record.totalQuestions ||
+            0
+        ),
+      0
+    );
+
+  return total /
+    records.length;
+}
+
+
+function getBestStudySeconds() {
+  return getHistoryWithCurrent()
+    .reduce(
+      (best, record) =>
+        Math.max(
+          best,
+          Number(
+            record.totalStudySeconds ||
+              0
+          )
+        ),
+      0
+    );
+}
+
+
+function getBestQuestionCount() {
+  return getHistoryWithCurrent()
+    .reduce(
+      (best, record) =>
+        Math.max(
+          best,
+          Number(
+            record.totalQuestions ||
+              0
+          )
+        ),
+      0
+    );
+}
+
+
+/* =========================================================
+   ANALYTICS REPORT
+========================================================= */
+
+function openAnalytics() {
+  const records =
+    getHistoryWithCurrent();
+
+  const recent =
+    records.slice(-7);
+
+  const averageStudy =
+    getAverageStudySeconds(
+      7
+    );
+
+  const averageQuestions =
+    getAverageQuestions(
+      7
+    );
+
+  const bestStudy =
+    getBestStudySeconds();
+
+  const bestQuestions =
+    getBestQuestionCount();
+
+  const averageScore =
+    recent.length
+      ? recent.reduce(
+          (sum, record) =>
+            sum +
+            calculateDayScore(
+              record
+            ),
+          0
+        ) /
+        recent.length
+      : 0;
+
+  modalBox(
+    "Analytics",
+
+    `
+      <div class="neetos-list">
+
+        <div class="neetos-item">
+          📈 7-day average study:
+          <b>
+            ${shortDuration(
+              averageStudy
+            )}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          📝 7-day average questions:
+          <b>
+            ${Math.round(
+              averageQuestions
+            )}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          📊 7-day average score:
+          <b>
+            ${Math.round(
+              averageScore
+            )}%
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          🏆 Best study day:
+          <b>
+            ${shortDuration(
+              bestStudy
+            )}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          🏆 Best questions:
+          <b>
+            ${bestQuestions}
+          </b>
+        </div>
+
+      </div>
+    `
+  );
+}
+
+
+/* =========================================================
+   MORE MENU EXTENSION
+========================================================= */
+
+function setupMoreExtraFeatures() {
+  const candidates =
+    document.querySelectorAll(
+      "#moreSection .feature-row, #moreSection button"
+    );
+
+  candidates.forEach(
+    element => {
+      if (
+        element.dataset.neetosExtra
+      ) {
+        return;
+      }
+
+      const text =
+        (
+          element.textContent ||
+          ""
+        ).toLowerCase();
+
+      if (
+        text.includes(
+          "summary"
+        )
+      ) {
+        element.dataset.neetosExtra =
+          "1";
+
+        element.addEventListener(
+          "click",
+          () =>
+            openDailySummary()
+        );
+      }
+
+      if (
+        text.includes(
+          "sunday test"
+        )
+      ) {
+        element.dataset.neetosExtra =
+          "1";
+
+        element.addEventListener(
+          "click",
+          () =>
+            openSundayTest()
+        );
+      }
+
+      if (
+        text.includes(
+          "analytics"
+        ) ||
+        text.includes(
+          "statistics"
+        )
+      ) {
+        element.dataset.neetosExtra =
+          "1";
+
+        element.addEventListener(
+          "click",
+          () =>
+            openAnalytics()
+        );
+      }
+
+      if (
+        text.includes(
+          "physics stats"
+        )
+      ) {
+        element.dataset.neetosExtra =
+          "1";
+
+        element.addEventListener(
+          "click",
+          () =>
+            openSubjectStats(
+              "Physics"
+            )
+        );
+      }
+
+      if (
+        text.includes(
+          "chemistry stats"
+        )
+      ) {
+        element.dataset.neetosExtra =
+          "1";
+
+        element.addEventListener(
+          "click",
+          () =>
+            openSubjectStats(
+              "Chemistry"
+            )
+        );
+      }
+
+      if (
+        text.includes(
+          "biology stats"
+        )
+      ) {
+        element.dataset.neetosExtra =
+          "1";
+
+        element.addEventListener(
+          "click",
+          () =>
+            openSubjectStats(
+              "Biology"
+            )
+        );
+      }
+    }
+  );
+}
+
+
+/* =========================================================
+   GLOBAL KEYBOARD SHORTCUTS
+========================================================= */
+
+function setupKeyboardShortcuts() {
+  document.addEventListener(
+    "keydown",
+    event => {
+
+      /*
+         Escape:
+         close modal.
+      */
+
+      if (
+        event.key ===
+        "Escape"
+      ) {
+        closeOverlay();
+        closeTaskModal();
+      }
+
+      /*
+         Ctrl + Shift + B:
+         backup panel.
+      */
+
+      if (
+        event.ctrlKey &&
+        event.shiftKey &&
+        event.key.toLowerCase() ===
+          "b"
+      ) {
+        event.preventDefault();
+
+        openBackup();
+      }
+    }
+  );
+}
+
+
+/* =========================================================
+   PAGE VISIBILITY
+========================================================= */
+
+document.addEventListener(
+  "visibilitychange",
+  () => {
+
+    if (
+      document.visibilityState ===
+      "visible"
+    ) {
+      /*
+         Immediately refresh when
+         returning to the app.
+      */
+
+      checkDailyRollover();
+
+      updateDateHeader();
+
+      updateHomeHeader();
+
+      renderTasks();
+
+      updateProgress();
+
+      updateStats();
+
+      updateHomeDashboard();
+
+      updateActiveTimer();
+
+      updateTaskStatusLabels();
+    }
+  }
+);
+
+
+/* =========================================================
+   ONLINE / OFFLINE STATUS
+========================================================= */
+
+function updateConnectionStatus() {
+  const online =
+    navigator.onLine;
+
+  document
+    .querySelectorAll(
+      "[data-connection-status]"
+    )
+    .forEach(
+      element => {
+        element.textContent =
+          online
+            ? "Online"
+            : "Offline";
+      }
+    );
+}
+
+
+window.addEventListener(
+  "online",
+  updateConnectionStatus
+);
+
+window.addEventListener(
+  "offline",
+  updateConnectionStatus
+);
+
+
+/* =========================================================
+   STORAGE STATUS
+========================================================= */
+
+function getStorageStatus() {
+  try {
+    const localStorageOK =
+      typeof localStorage !==
+      "undefined";
+
+    const indexedDBOK =
+      "indexedDB" in window;
+
+    return {
+      localStorage:
+        localStorageOK,
+
+      indexedDB:
+        indexedDBOK,
+
+      persistent:
+        !!(
+          navigator.storage &&
+          navigator.storage.persist
+        )
+    };
+
+  } catch {
+    return {
+      localStorage: false,
+      indexedDB: false,
+      persistent: false
+    };
+  }
+}
+
+
+function openStorageStatus() {
+  const status =
+    getStorageStatus();
+
+  modalBox(
+    "Storage Status",
+
+    `
+      <div class="neetos-list">
+
+        <div class="neetos-item">
+          Local Storage:
+          <b>
+            ${
+              status.localStorage
+                ? "Available"
+                : "Unavailable"
+            }
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          IndexedDB:
+          <b>
+            ${
+              status.indexedDB
+                ? "Available"
+                : "Unavailable"
+            }
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Persistent Storage API:
+          <b>
+            ${
+              status.persistent
+                ? "Available"
+                : "Unavailable"
+            }
+          </b>
+        </div>
+
+      </div>
+    `
+  );
+}
+
+
+/* =========================================================
+   ROBUST STORAGE UPGRADE
+   IndexedDB + localStorage mirror
+========================================================= */
 
 (function NEETOSStorageUpgrade() {
 
-    const DB_NAME = "NEET_OS_DB";
-    const DB_VERSION = 1;
-    const STORE_NAME = "data";
+  const DB_NAME =
+    "NEET_OS_DB";
 
-    const IMPORTANT_KEYS = new Set([
-        "neetOSStudyData",
-        "neetOSHistory",
-        "neetOSSyllabus",
-        "neetOSSettings"
+  const DB_VERSION =
+    1;
+
+  const STORE_NAME =
+    "data";
+
+  const IMPORTANT_KEYS =
+    new Set([
+      STORAGE_KEY,
+      HISTORY_KEY,
+      SYLLABUS_KEY,
+      SETTINGS_KEY
     ]);
 
-    let db = null;
+  let db =
+    null;
 
-    /* ---------- Open database ---------- */
 
-    function openDatabase() {
-        return new Promise((resolve, reject) => {
-
-            if (!("indexedDB" in window)) {
-                reject(new Error("IndexedDB not supported"));
-                return;
-            }
-
-            const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-            request.onupgradeneeded = function () {
-                const database = request.result;
-
-                if (!database.objectStoreNames.contains(STORE_NAME)) {
-                    database.createObjectStore(STORE_NAME);
-                }
-            };
-
-            request.onsuccess = function () {
-                db = request.result;
-                resolve(db);
-            };
-
-            request.onerror = function () {
-                reject(request.error);
-            };
-        });
-    }
-
-    /* ---------- Write to IndexedDB ---------- */
-
-    function dbWrite(key, value) {
-
-        if (!db || !IMPORTANT_KEYS.has(key)) {
-            return Promise.resolve();
-        }
-
-        return new Promise(resolve => {
-
-            try {
-
-                const tx = db.transaction(STORE_NAME, "readwrite");
-                const store = tx.objectStore(STORE_NAME);
-
-                store.put({
-                    key: key,
-                    value: value,
-                    savedAt: Date.now()
-                }, key);
-
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => resolve();
-
-            } catch (e) {
-                resolve();
-            }
-
-        });
-    }
-
-    /* ---------- Read from IndexedDB ---------- */
-
-    function dbRead(key) {
-
-        if (!db || !IMPORTANT_KEYS.has(key)) {
-            return Promise.resolve(null);
-        }
-
-        return new Promise(resolve => {
-
-            try {
-
-                const tx = db.transaction(STORE_NAME, "readonly");
-                const store = tx.objectStore(STORE_NAME);
-                const request = store.get(key);
-
-                request.onsuccess = function () {
-                    resolve(request.result || null);
-                };
-
-                request.onerror = function () {
-                    resolve(null);
-                };
-
-            } catch (e) {
-                resolve(null);
-            }
-
-        });
-    }
-
-    /* ---------- Backup all important localStorage data ---------- */
-
-    async function migrateExistingData() {
-
-        for (const key of IMPORTANT_KEYS) {
-
-            try {
-
-                const localValue = localStorage.getItem(key);
-
-                if (localValue !== null) {
-
-                    const existing = await dbRead(key);
-
-                    /*
-                     * localStorage is considered the current source
-                     * during the first migration.
-                     */
-                    if (!existing) {
-                        await dbWrite(key, localValue);
-                    }
-                }
-
-            } catch (e) {
-                console.warn("NEET OS migration warning:", key, e);
-            }
-        }
-    }
-
-    /* ---------- Restore missing localStorage data ---------- */
-
-    async function restoreMissingData() {
-
-        for (const key of IMPORTANT_KEYS) {
-
-            try {
-
-                const localValue = localStorage.getItem(key);
-
-                if (localValue === null) {
-
-                    const record = await dbRead(key);
-
-                    if (record && record.value !== undefined) {
-
-                        localStorage.setItem(
-                            key,
-                            record.value
-                        );
-
-                        console.log(
-                            "NEET OS restored:",
-                            key
-                        );
-                    }
-                }
-
-            } catch (e) {
-                console.warn("NEET OS restore warning:", key, e);
-            }
-        }
-    }
-
-    /* ---------- Mirror future localStorage writes ---------- */
-
-    const originalSetItem = Storage.prototype.setItem;
-
-    Storage.prototype.setItem = function (key, value) {
-
-        originalSetItem.call(this, key, value);
+  function openDatabase() {
+    return new Promise(
+      (resolve, reject) => {
 
         if (
-            this === window.localStorage &&
-            IMPORTANT_KEYS.has(String(key))
+          !("indexedDB" in window)
         ) {
-            dbWrite(String(key), String(value))
-                .catch(() => {});
+          reject(
+            new Error(
+              "IndexedDB not supported"
+            )
+          );
+
+          return;
         }
-    };
 
-    /* ---------- Persistent storage request ---------- */
+        const request =
+          indexedDB.open(
+            DB_NAME,
+            DB_VERSION
+          );
 
-    async function requestPersistentStorage() {
-
-        try {
+        request.onupgradeneeded =
+          function () {
+            const database =
+              request.result;
 
             if (
-                navigator.storage &&
-                navigator.storage.persist
+              !database
+                .objectStoreNames
+                .contains(
+                  STORE_NAME
+                )
             ) {
-
-                const persistent =
-                    await navigator.storage.persist();
-
-                console.log(
-                    "NEET OS persistent storage:",
-                    persistent ? "enabled" : "not granted"
-                );
+              database.createObjectStore(
+                STORE_NAME
+              );
             }
+          };
 
-        } catch (e) {
-            console.warn(
-                "NEET OS persistent storage unavailable:",
-                e
+        request.onsuccess =
+          function () {
+            db =
+              request.result;
+
+            resolve(db);
+          };
+
+        request.onerror =
+          function () {
+            reject(
+              request.error
             );
-        }
+          };
+      }
+    );
+  }
+
+
+  function dbWrite(
+    key,
+    value
+  ) {
+    if (
+      !db ||
+      !IMPORTANT_KEYS.has(
+        key
+      )
+    ) {
+      return Promise.resolve();
     }
 
-    /* ---------- Status ---------- */
-
-    window.NEETOSStorage = {
-
-        status: function () {
-            return {
-                database: DB_NAME,
-                indexedDB: !!db,
-                localStorage: true
-            };
-        },
-
-        save: async function (key) {
-
-            if (!IMPORTANT_KEYS.has(key)) return false;
-
-            const value = localStorage.getItem(key);
-
-            if (value === null) return false;
-
-            await dbWrite(key, value);
-
-            return true;
-        },
-
-        restore: restoreMissingData
-    };
-
-    /* ---------- Start ---------- */
-
-    async function initializeStorage() {
+    return new Promise(
+      resolve => {
 
         try {
 
-            await openDatabase();
-
-            /*
-             * First try to restore missing data.
-             * If localStorage already contains data,
-             * it remains untouched.
-             */
-            await restoreMissingData();
-
-            /*
-             * Then make sure all existing data is mirrored
-             * into IndexedDB.
-             */
-            await migrateExistingData();
-
-            await requestPersistentStorage();
-
-            console.log(
-                "NEET OS: Robust storage system ready."
+          const tx =
+            db.transaction(
+              STORE_NAME,
+              "readwrite"
             );
 
-        } catch (e) {
-
-            console.warn(
-                "NEET OS: IndexedDB unavailable. " +
-                "Continuing with localStorage.",
-                e
+          const store =
+            tx.objectStore(
+              STORE_NAME
             );
+
+          store.put(
+            {
+              key,
+              value,
+              savedAt:
+                Date.now()
+            },
+            key
+          );
+
+          tx.oncomplete =
+            () => resolve();
+
+          tx.onerror =
+            () => resolve();
+
+        } catch {
+          resolve();
         }
+      }
+    );
+  }
+
+
+  function dbRead(key) {
+    if (
+      !db ||
+      !IMPORTANT_KEYS.has(
+        key
+      )
+    ) {
+      return Promise.resolve(
+        null
+      );
     }
 
-    initializeStorage();
+    return new Promise(
+      resolve => {
+
+        try {
+
+          const tx =
+            db.transaction(
+              STORE_NAME,
+              "readonly"
+            );
+
+          const store =
+            tx.objectStore(
+              STORE_NAME
+            );
+
+          const request =
+            store.get(key);
+
+          request.onsuccess =
+            function () {
+              resolve(
+                request.result ||
+                  null
+              );
+            };
+
+          request.onerror =
+            function () {
+              resolve(null);
+            };
+
+        } catch {
+          resolve(null);
+        }
+      }
+    );
+  }
+
+
+  async function migrateExistingData() {
+    for (
+      const key of
+        IMPORTANT_KEYS
+    ) {
+
+      try {
+
+        const localValue =
+          localStorage.getItem(
+            key
+          );
+
+        if (
+          localValue !==
+          null
+        ) {
+
+          const existing =
+            await dbRead(
+              key
+            );
+
+          if (!existing) {
+
+            await dbWrite(
+              key,
+              localValue
+            );
+          }
+        }
+
+      } catch (error) {
+
+        console.warn(
+          "NEET OS migration warning:",
+          key,
+          error
+        );
+      }
+    }
+  }
+
+
+  async function restoreMissingData() {
+    for (
+      const key of
+        IMPORTANT_KEYS
+    ) {
+
+      try {
+
+        const localValue =
+          localStorage.getItem(
+            key
+          );
+
+        if (
+          localValue ===
+          null
+        ) {
+
+          const record =
+            await dbRead(
+              key
+            );
+
+          if (
+            record &&
+            record.value !==
+              undefined
+          ) {
+
+            localStorage.setItem(
+              key,
+              record.value
+            );
+
+            console.log(
+              "NEET OS restored:",
+              key
+            );
+          }
+        }
+
+      } catch (error) {
+
+        console.warn(
+          "NEET OS restore warning:",
+          key,
+          error
+        );
+      }
+    }
+  }
+
+
+  /*
+     Mirror important localStorage
+     writes into IndexedDB.
+  */
+
+  const originalSetItem =
+    Storage.prototype.setItem;
+
+  Storage.prototype.setItem =
+    function (
+      key,
+      value
+    ) {
+
+      originalSetItem.call(
+        this,
+        key,
+        value
+      );
+
+      if (
+        this ===
+          window.localStorage &&
+        IMPORTANT_KEYS.has(
+          String(key)
+        )
+      ) {
+
+        dbWrite(
+          String(key),
+          String(value)
+        ).catch(
+          () => {}
+        );
+      }
+    };
+
+
+  async function requestPersistentStorage() {
+    try {
+
+      if (
+        navigator.storage &&
+        navigator.storage.persist
+      ) {
+
+        const persistent =
+          await navigator.storage.persist();
+
+        console.log(
+          "NEET OS persistent storage:",
+          persistent
+            ? "enabled"
+            : "not granted"
+        );
+      }
+
+    } catch (error) {
+
+      console.warn(
+        "NEET OS persistent storage unavailable:",
+        error
+      );
+    }
+  }
+
+
+  window.NEETOSStorage = {
+
+    status:
+      function () {
+        return {
+          database:
+            DB_NAME,
+
+          indexedDB:
+            !!db,
+
+          localStorage:
+            true
+        };
+      },
+
+
+    save:
+      async function (key) {
+
+        if (
+          !IMPORTANT_KEYS.has(
+            key
+          )
+        ) {
+          return false;
+        }
+
+        const value =
+          localStorage.getItem(
+            key
+          );
+
+        if (
+          value === null
+        ) {
+          return false;
+        }
+
+        await dbWrite(
+          key,
+          value
+        );
+
+        return true;
+      },
+
+
+    restore:
+      restoreMissingData
+  };
+
+
+  async function initializeStorage() {
+    try {
+
+      await openDatabase();
+
+      /*
+         Restore first.
+      */
+
+      await restoreMissingData();
+
+      /*
+         Then migrate existing
+         localStorage data.
+      */
+
+      await migrateExistingData();
+
+      /*
+         Ask browser for persistent
+         storage.
+      */
+
+      await requestPersistentStorage();
+
+      console.log(
+        "NEET OS: Robust storage system ready."
+      );
+
+    } catch (error) {
+
+      console.warn(
+        "NEET OS: IndexedDB unavailable. " +
+        "Continuing with localStorage.",
+        error
+      );
+    }
+  }
+
+
+  initializeStorage();
 
 })();
+
+
+/* =========================================================
+   STORAGE PERIODIC SYNC
+========================================================= */
+
+setInterval(
+  async () => {
+
+    try {
+
+      if (
+        window.NEETOSStorage
+      ) {
+
+        await window
+          .NEETOSStorage
+          .save(
+            STORAGE_KEY
+          );
+
+        await window
+          .NEETOSStorage
+          .save(
+            HISTORY_KEY
+          );
+
+        await window
+          .NEETOSStorage
+          .save(
+            SYLLABUS_KEY
+          );
+
+        await window
+          .NEETOSStorage
+          .save(
+            SETTINGS_KEY
+          );
+      }
+
+    } catch (error) {
+
+      console.warn(
+        "NEET OS storage sync warning:",
+        error
+      );
+    }
+
+  },
+  30000
+);
+
+
+/* =========================================================
+   FINAL UI REFRESH EXTENSION
+========================================================= */
+
+function refreshAllUI() {
+  try {
+
+    checkDailyRollover();
+
+    updateDateHeader();
+
+    updateHomeHeader();
+
+    renderTasks();
+
+    updateProgress();
+
+    updateStats();
+
+    updateHomeDashboard();
+
+    updateActiveTimer();
+
+    updateTaskStatusLabels();
+
+    updateConnectionStatus();
+
+  } catch (error) {
+
+    console.error(
+      "NEET OS UI refresh error:",
+      error
+    );
+  }
+}
+
+
+/* =========================================================
+   EXTEND INITIALIZATION
+========================================================= */
+
+const originalInitializeNEETOS =
+  initializeNEETOS;
+
+initializeNEETOS =
+  function () {
+
+    originalInitializeNEETOS();
+
+    /*
+       Extra features are attached
+       after the original UI exists.
+    */
+
+    setupSubjectStatsButtons();
+
+    setupMoreExtraFeatures();
+
+    setupKeyboardShortcuts();
+
+    updateConnectionStatus();
+
+    refreshAllUI();
+  };
+
+
+/*
+   If initialization already happened
+   before this extension was defined,
+   run the extra setup once.
+*/
+
+if (
+  initialized
+) {
+  setupSubjectStatsButtons();
+
+  setupMoreExtraFeatures();
+
+  setupKeyboardShortcuts();
+
+  updateConnectionStatus();
+
+  refreshAllUI();
+}
+
+
+/* =========================================================
+   EXTRA LIVE LOOP
+========================================================= */
+
+setInterval(
+  () => {
+
+    if (!data) {
+      return;
+    }
+
+    updateActiveTimer();
+
+    updateHomeDashboard();
+
+    updateTaskStatusLabels();
+
+  },
+  1000
+);
+
+
+/* =========================================================
+   DEBUG INFORMATION
+========================================================= */
+
+window.NEETOSDebug = {
+
+  getStudyDay:
+    () =>
+      getStudyDayKey(),
+
+  getCalendarDay:
+    () =>
+      calendarDayKey(),
+
+  getWeekInfo:
+    () =>
+      getWeekInfo(),
+
+  getProgress:
+    () => ({
+      completed:
+        getCompletedTaskCount(),
+
+      total:
+        8,
+
+      percentage:
+        Math.round(
+          (
+            getCompletedTaskCount() /
+            8
+          ) *
+          100
+        )
+    }),
+
+  getStudyTime:
+    () =>
+      getTotalStudySeconds(),
+
+  getQuestions:
+    () =>
+      getTotalQuestions(),
+
+  storage:
+    () =>
+      window.NEETOSStorage
+        ?.status?.(),
+
+  data:
+    () =>
+      data
+};
+
+
+/* =========================================================
+   FINAL SAFETY CHECK
+========================================================= */
+
+window.addEventListener(
+  "error",
+  event => {
+    console.error(
+      "NEET OS runtime error:",
+      event.error ||
+        event.message
+    );
+  }
+);
+
+
+window.addEventListener(
+  "unhandledrejection",
+  event => {
+    console.error(
+      "NEET OS promise error:",
+      event.reason
+    );
+  }
+);
+
+
+/* =========================================================
+   END OF PART 2
+========================================================= *//* =========================================================
+   NEET OS — PART 3
+   ADVANCED DAILY TRACKING
+========================================================= */
+
+
+/* =========================================================
+   REPAIR TRACKING
+========================================================= */
+
+function getRepairLog() {
+  if (
+    !data ||
+    !Array.isArray(data.repairLog)
+  ) {
+    return [];
+  }
+
+  return data.repairLog;
+}
+
+
+function addRepairEntry(
+  taskIndex,
+  reason,
+  completedLater = false
+) {
+  if (!data) {
+    return;
+  }
+
+  if (
+    !Array.isArray(
+      data.repairLog
+    )
+  ) {
+    data.repairLog = [];
+  }
+
+  data.repairLog.push({
+    date:
+      getStudyDayKey(),
+
+    taskIndex:
+      Number(taskIndex),
+
+    taskName:
+      tasks[taskIndex]?.name ||
+      "Unknown Task",
+
+    reason:
+      String(
+        reason ||
+          "Not specified"
+      ),
+
+    completedLater:
+      !!completedLater,
+
+    createdAt:
+      Date.now()
+  });
+
+  saveData();
+}
+
+
+function openRepairLog() {
+  const log =
+    getRepairLog();
+
+  if (!log.length) {
+    modalBox(
+      "Repair History",
+      `
+        <div class="neetos-item">
+          No repair entries yet.
+        </div>
+      `
+    );
+
+    return;
+  }
+
+  const recent =
+    log
+      .slice()
+      .reverse()
+      .slice(0, 50);
+
+  const html =
+    `
+      <div class="neetos-list">
+
+        ${recent.map(
+          entry => {
+
+            const taskName =
+              tasks[
+                Number(
+                  entry.taskIndex
+                )
+              ]?.name ||
+              entry.taskName ||
+              "Unknown Task";
+
+            return `
+              <div class="neetos-item">
+
+                <b>
+                  ${esc(taskName)}
+                </b>
+
+                <br>
+
+                <small>
+                  ${esc(
+                    entry.date || ""
+                  )}
+                </small>
+
+                <br>
+
+                Reason:
+                ${esc(
+                  entry.reason ||
+                    "Not specified"
+                )}
+
+                <br>
+
+                Status:
+                ${
+                  entry.completedLater
+                    ? "Repaired"
+                    : "Pending"
+                }
+
+              </div>
+            `;
+          }
+        ).join("")}
+
+      </div>
+    `;
+
+  modalBox(
+    "Repair History",
+    html
+  );
+}
+
+
+/* =========================================================
+   MISSED TASK ENHANCEMENT
+========================================================= */
+
+function getMissedTaskEntries() {
+  const current =
+    getCurrentMinutes();
+
+  return tasks
+    .map(
+      (task, index) => ({
+        task,
+        index
+      })
+    )
+    .filter(
+      ({ task, index }) => {
+
+        if (
+          !isProgressTask(index)
+        ) {
+          return false;
+        }
+
+        if (
+          data.completed[index]
+        ) {
+          return false;
+        }
+
+        if (
+          data.activeTask === index
+        ) {
+          return false;
+        }
+
+        const start =
+          timeToMinutes(
+            task.start
+          );
+
+        const end =
+          timeToMinutes(
+            task.end
+          );
+
+        /*
+           Normal daytime task.
+        */
+
+        if (
+          end > start
+        ) {
+          return current >= end;
+        }
+
+        /*
+           Overnight task.
+        */
+
+        return (
+          current >= end &&
+          current < start
+        );
+      }
+    );
+}
+
+
+function markTaskForRepair(
+  index
+) {
+  const task =
+    tasks[index];
+
+  if (!task) {
+    return;
+  }
+
+  const reason =
+    prompt(
+      `Why was "${task.name}" missed?`,
+      ""
+    );
+
+  if (
+    reason === null
+  ) {
+    return;
+  }
+
+  data.missedReasons[index] =
+    reason ||
+    "Not specified";
+
+  addRepairEntry(
+    index,
+    reason,
+    false
+  );
+
+  alert(
+    "Repair entry saved."
+  );
+
+  renderTasks();
+  updateProgress();
+  updateStats();
+}
+
+
+/* =========================================================
+   IMPROVED MISSED TASK PANEL
+========================================================= */
+
+function openMissedTasksEnhanced() {
+  const missed =
+    getMissedTaskEntries();
+
+  if (!missed.length) {
+    modalBox(
+      "Missed Tasks",
+      `
+        <div class="neetos-item">
+          <b>
+            No missed scheduled task right now.
+          </b>
+        </div>
+      `
+    );
+
+    return;
+  }
+
+  const html =
+    `
+      <div class="neetos-list">
+
+        ${missed.map(
+          ({ task, index }) => `
+            <div
+              class="neetos-item"
+              data-missed-card="${index}"
+            >
+
+              <b>
+                ${esc(task.name)}
+              </b>
+
+              <br>
+
+              <small>
+                ${esc(
+                  formatRange(task)
+                )}
+              </small>
+
+              <br><br>
+
+              <button
+                class="ns"
+                data-record-repair="${index}"
+              >
+                Record Repair
+              </button>
+
+            </div>
+          `
+        ).join("")}
+
+      </div>
+    `;
+
+  modalBox(
+    "Missed Tasks",
+    html
+  );
+
+  document
+    .querySelectorAll(
+      "[data-record-repair]"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            const index =
+              Number(
+                button.dataset
+                  .recordRepair
+              );
+
+            markTaskForRepair(
+              index
+            );
+
+            closeOverlay();
+
+            openMissedTasksEnhanced();
+          }
+        );
+
+      }
+    );
+}
+
+
+/* =========================================================
+   DAILY TARGETS
+========================================================= */
+
+function getDailyTargets() {
+  return {
+    studyHours: 10,
+    questions: 180,
+    tasks: 8
+  };
+}
+
+
+function getDailyTargetStatus() {
+  const targets =
+    getDailyTargets();
+
+  const studySeconds =
+    getTotalStudySeconds();
+
+  const questions =
+    getTotalQuestions();
+
+  const completed =
+    getCompletedTaskCount();
+
+  return {
+    study: {
+      current:
+        studySeconds,
+
+      target:
+        targets.studyHours *
+        3600,
+
+      percentage:
+        Math.min(
+          100,
+          Math.round(
+            (
+              studySeconds /
+              (
+                targets.studyHours *
+                3600
+              )
+            ) *
+            100
+          )
+        )
+    },
+
+    questions: {
+      current:
+        questions,
+
+      target:
+        targets.questions,
+
+      percentage:
+        Math.min(
+          100,
+          Math.round(
+            (
+              questions /
+              targets.questions
+            ) *
+            100
+          )
+        )
+    },
+
+    tasks: {
+      current:
+        completed,
+
+      target:
+        targets.tasks,
+
+      percentage:
+        Math.min(
+          100,
+          Math.round(
+            (
+              completed /
+              targets.tasks
+            ) *
+            100
+          )
+        )
+    }
+  };
+}
+
+
+/* =========================================================
+   TARGET PANEL
+========================================================= */
+
+function openDailyTargets() {
+  const status =
+    getDailyTargetStatus();
+
+  modalBox(
+    "Daily Targets",
+
+    `
+      <div class="neetos-list">
+
+        <div class="neetos-item">
+
+          <b>
+            Study Time
+          </b>
+
+          <br>
+
+          ${shortDuration(
+            status.study.current
+          )}
+
+          /
+          ${shortDuration(
+            status.study.target
+          )}
+
+          <br>
+
+          ${status.study.percentage}%
+
+        </div>
+
+
+        <div class="neetos-item">
+
+          <b>
+            Questions
+          </b>
+
+          <br>
+
+          ${status.questions.current}
+          /
+          ${status.questions.target}
+
+          <br>
+
+          ${status.questions.percentage}%
+
+        </div>
+
+
+        <div class="neetos-item">
+
+          <b>
+            Scheduled Tasks
+          </b>
+
+          <br>
+
+          ${status.tasks.current}
+          /
+          ${status.tasks.target}
+
+          <br>
+
+          ${status.tasks.percentage}%
+
+        </div>
+
+      </div>
+    `
+  );
+}
+
+
+/* =========================================================
+   DAILY CONSISTENCY
+========================================================= */
+
+function calculateConsistency(
+  records
+) {
+  if (
+    !records ||
+    !records.length
+  ) {
+    return 0;
+  }
+
+  let goodDays = 0;
+
+  records.forEach(
+    record => {
+
+      const score =
+        calculateDayScore(
+          record
+        );
+
+      if (
+        score >= 70
+      ) {
+        goodDays++;
+      }
+    }
+  );
+
+  return Math.round(
+    (
+      goodDays /
+      records.length
+    ) *
+    100
+  );
+}
+
+
+function getLast7DaysConsistency() {
+  const records =
+    getHistoryWithCurrent()
+      .slice(-7);
+
+  return calculateConsistency(
+    records
+  );
+}
+
+
+/* =========================================================
+   CONSISTENCY PANEL
+========================================================= */
+
+function openConsistency() {
+  const records =
+    getHistoryWithCurrent();
+
+  const recent =
+    records.slice(-7);
+
+  const consistency =
+    calculateConsistency(
+      recent
+    );
+
+  modalBox(
+    "Consistency",
+
+    `
+      <div class="neetos-list">
+
+        <div class="neetos-item">
+
+          Last 7 days:
+          <b>
+            ${consistency}%
+          </b>
+
+        </div>
+
+        <div class="neetos-item">
+
+          Days with 70%+ score:
+          <b>
+            ${
+              recent.filter(
+                record =>
+                  calculateDayScore(
+                    record
+                  ) >= 70
+              ).length
+            }
+            /
+            ${recent.length}
+          </b>
+
+        </div>
+
+      </div>
+    `
+  );
+}
+
+
+/* =========================================================
+   STUDY TIME BY TASK
+========================================================= */
+
+function getTaskBreakdown() {
+  return tasks.map(
+    (task, index) => ({
+      index,
+
+      name:
+        task.name,
+
+      seconds:
+        getTaskStudySeconds(
+          index
+        ),
+
+      questions:
+        getTaskQuestionCount(
+          index
+        ),
+
+      completed:
+        !!data.completed[index]
+    })
+  );
+}
+
+
+function openTaskBreakdown() {
+  const breakdown =
+    getTaskBreakdown();
+
+  const html =
+    `
+      <div class="neetos-list">
+
+        ${breakdown.map(
+          item => `
+            <div class="neetos-item">
+
+              <b>
+                ${esc(item.name)}
+              </b>
+
+              <br>
+
+              Time:
+              ${shortDuration(
+                item.seconds
+              )}
+
+              ${
+                item.questions
+                  ? `
+                    <br>
+                    Questions:
+                    ${item.questions}
+                  `
+                  : ""
+              }
+
+              <br>
+
+              Status:
+              ${
+                item.completed
+                  ? "✓ Done"
+                  : "Pending"
+              }
+
+            </div>
+          `
+        ).join("")}
+
+      </div>
+    `;
+
+  modalBox(
+    "Today's Task Breakdown",
+    html
+  );
+}
+
+
+/* =========================================================
+   HISTORY DAY DETAILS
+========================================================= */
+
+function openHistoryDay(
+  key
+) {
+  const record =
+    getRecordForDate(
+      key
+    );
+
+  if (!record) {
+    modalBox(
+      key,
+      `
+        <div class="neetos-item">
+          No data recorded for this day.
+        </div>
+      `
+    );
+
+    return;
+  }
+
+  const score =
+    calculateDayScore(
+      record
+    );
+
+  modalBox(
+    `Study Day — ${key}`,
+
+    `
+      <div class="neetos-list">
+
+        <div class="neetos-item">
+          Study:
+          <b>
+            ${shortDuration(
+              record.totalStudySeconds ||
+                0
+            )}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Questions:
+          <b>
+            ${
+              record.totalQuestions ||
+              0
+            }
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Tasks:
+          <b>
+            ${
+              record.completedCount ||
+              0
+            }
+            / 8
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Score:
+          <b>
+            ${score}%
+          </b>
+        </div>
+
+      </div>
+    `
+  );
+}
+
+
+/* =========================================================
+   HISTORY BROWSER
+========================================================= */
+
+function openHistoryBrowser() {
+  const records =
+    getHistoryWithCurrent()
+      .slice()
+      .reverse()
+      .slice(0, 30);
+
+  if (!records.length) {
+    modalBox(
+      "Study History",
+      `
+        <div class="neetos-item">
+          No history available yet.
+        </div>
+      `
+    );
+
+    return;
+  }
+
+  const html =
+    `
+      <div class="neetos-list">
+
+        ${records.map(
+          record => {
+
+            const score =
+              calculateDayScore(
+                record
+              );
+
+            return `
+              <button
+                class="neetos-item"
+                data-history-date="${esc(
+                  record.date
+                )}"
+                style="
+                  width:100%;
+                  text-align:left;
+                  border:0;
+                  color:inherit;
+                  cursor:pointer;
+                "
+              >
+
+                <b>
+                  ${esc(
+                    record.date
+                  )}
+                </b>
+
+                <br>
+
+                Study:
+                ${shortDuration(
+                  record.totalStudySeconds ||
+                    0
+                )}
+
+                •
+                Questions:
+                ${
+                  record.totalQuestions ||
+                  0
+                }
+
+                •
+                Score:
+                ${score}%
+
+              </button>
+            `;
+          }
+        ).join("")}
+
+      </div>
+    `;
+
+  modalBox(
+    "Study History",
+    html
+  );
+
+  document
+    .querySelectorAll(
+      "[data-history-date]"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            const key =
+              button.dataset
+                .historyDate;
+
+            closeOverlay();
+
+            openHistoryDay(
+              key
+            );
+          }
+        );
+
+      }
+    );
+}
+
+
+/* =========================================================
+   WEEKLY REPORT
+========================================================= */
+
+function getWeekRecords(
+  weekNumber
+) {
+  const records =
+    getHistoryWithCurrent();
+
+  return records.filter(
+    record => {
+
+      const info =
+        getWeekInfo(
+          record.date
+        );
+
+      return (
+        info.week ===
+        weekNumber
+      );
+    }
+  );
+}
+
+
+function openWeeklyReport(
+  weekNumber =
+    getWeekInfo().week
+) {
+  const records =
+    getWeekRecords(
+      weekNumber
+    );
+
+  const totalStudy =
+    records.reduce(
+      (sum, record) =>
+        sum +
+        Number(
+          record.totalStudySeconds ||
+            0
+        ),
+      0
+    );
+
+  const totalQuestions =
+    records.reduce(
+      (sum, record) =>
+        sum +
+        Number(
+          record.totalQuestions ||
+            0
+        ),
+      0
+    );
+
+  const totalTasks =
+    records.reduce(
+      (sum, record) =>
+        sum +
+        Number(
+          record.completedCount ||
+            0
+        ),
+      0
+    );
+
+  const averageScore =
+    records.length
+      ? Math.round(
+          records.reduce(
+            (sum, record) =>
+              sum +
+              calculateDayScore(
+                record
+              ),
+            0
+          ) /
+            records.length
+        )
+      : 0;
+
+  modalBox(
+    `Week ${weekNumber} Report`,
+
+    `
+      <div class="neetos-list">
+
+        <div class="neetos-item">
+          Days recorded:
+          <b>
+            ${records.length} / 7
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Study time:
+          <b>
+            ${shortDuration(
+              totalStudy
+            )}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Questions:
+          <b>
+            ${totalQuestions}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Tasks completed:
+          <b>
+            ${totalTasks}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Average score:
+          <b>
+            ${averageScore}%
+          </b>
+        </div>
+
+      </div>
+    `
+  );
+}
+
+
+/* =========================================================
+   WEEK SELECTOR
+========================================================= */
+
+function openWeekSelector() {
+  const currentWeek =
+    getWeekInfo().week;
+
+  const html =
+    `
+      <label>
+
+        Select Week
+
+        <input
+          id="weekSelectorInput"
+          type="number"
+          min="1"
+          max="52"
+          value="${currentWeek}"
+        >
+
+      </label>
+    `;
+
+  modalBox(
+    "Weekly Report",
+    html,
+    [
+      {
+        label:
+          "Open Report",
+
+        primary:
+          true,
+
+        onClick:
+          () => {
+
+            const week =
+              Math.max(
+                1,
+                Number(
+                  $("weekSelectorInput")
+                    ?.value ||
+                    currentWeek
+                )
+              );
+
+            closeOverlay();
+
+            openWeeklyReport(
+              week
+            );
+          }
+      }
+    ]
+  );
+}
+
+
+/* =========================================================
+   MONTHLY OVERVIEW
+========================================================= */
+
+function openMonthlyOverview() {
+  const records =
+    getHistoryWithCurrent();
+
+  const now =
+    new Date();
+
+  const year =
+    now.getFullYear();
+
+  const month =
+    now.getMonth();
+
+  const monthly =
+    records.filter(
+      record => {
+
+        const d =
+          parseDate(
+            record.date
+          );
+
+        return (
+          d.getFullYear() ===
+            year &&
+          d.getMonth() ===
+            month
+        );
+      }
+    );
+
+  const study =
+    monthly.reduce(
+      (sum, record) =>
+        sum +
+        Number(
+          record.totalStudySeconds ||
+            0
+        ),
+      0
+    );
+
+  const questions =
+    monthly.reduce(
+      (sum, record) =>
+        sum +
+        Number(
+          record.totalQuestions ||
+            0
+        ),
+      0
+    );
+
+  const average =
+    monthly.length
+      ? Math.round(
+          monthly.reduce(
+            (sum, record) =>
+              sum +
+              calculateDayScore(
+                record
+              ),
+            0
+          ) /
+            monthly.length
+        )
+      : 0;
+
+  modalBox(
+    "This Month",
+
+    `
+      <div class="neetos-list">
+
+        <div class="neetos-item">
+          Days studied:
+          <b>
+            ${monthly.length}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Study time:
+          <b>
+            ${shortDuration(
+              study
+            )}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Questions:
+          <b>
+            ${questions}
+          </b>
+        </div>
+
+        <div class="neetos-item">
+          Average score:
+          <b>
+            ${average}%
+          </b>
+        </div>
+
+      </div>
+    `
+  );
+}
+
+
+/* =========================================================
+   APP MENU ACTION ROUTER
+========================================================= */
+
+function routeMoreAction(
+  text
+) {
+  const value =
+    String(text || "")
+      .toLowerCase()
+      .trim();
+
+  if (
+    value.includes(
+      "notification"
+    ) ||
+    value.includes(
+      "reminder"
+    )
+  ) {
+    openNotificationPanel();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "daily summary"
+    ) ||
+    value.includes(
+      "today summary"
+    )
+  ) {
+    openDailySummary();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "daily target"
+    ) ||
+    value.includes(
+      "target"
+    )
+  ) {
+    openDailyTargets();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "missed"
+    )
+  ) {
+    openMissedTasksEnhanced();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "repair history"
+    )
+  ) {
+    openRepairLog();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "history"
+    )
+  ) {
+    openHistoryBrowser();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "weekly"
+    )
+  ) {
+    openWeekSelector();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "monthly"
+    )
+  ) {
+    openMonthlyOverview();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "consistency"
+    )
+  ) {
+    openConsistency();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "task breakdown"
+    )
+  ) {
+    openTaskBreakdown();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "sunday test"
+    )
+  ) {
+    openSundayTest();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "analytics"
+    )
+  ) {
+    openAnalytics();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "personal best"
+    )
+  ) {
+    openPersonalBest();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "sleep"
+    )
+  ) {
+    openSleepTracking();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "backup"
+    )
+  ) {
+    openBackup();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "storage"
+    )
+  ) {
+    openStorageStatus();
+
+    return true;
+  }
+
+  if (
+    value.includes(
+      "setting"
+    )
+  ) {
+    openSettings();
+
+    return true;
+  }
+
+  return false;
+}
+
+
+/* =========================================================
+   MORE MENU ROUTING
+========================================================= */
+
+function setupMoreActionRouter() {
+  document
+    .querySelectorAll(
+      "#moreSection .feature-row, #moreSection button"
+    )
+    .forEach(
+      element => {
+
+        if (
+          element.dataset
+            .neetosRouterBound
+        ) {
+          return;
+        }
+
+        const text =
+          element.textContent ||
+          "";
+
+        /*
+           Only attach if one of
+           our known actions matches.
+        */
+
+        const known =
+          routeMoreAction;
+
+        if (
+          typeof known !==
+          "function"
+        ) {
+          return;
+        }
+
+        const lower =
+          text.toLowerCase();
+
+        const shouldBind =
+          [
+            "notification",
+            "reminder",
+            "summary",
+            "target",
+            "missed",
+            "repair",
+            "history",
+            "weekly",
+            "monthly",
+            "consistency",
+            "breakdown",
+            "sunday",
+            "analytics",
+            "personal best",
+            "sleep",
+            "backup",
+            "storage",
+            "setting"
+          ].some(
+            keyword =>
+              lower.includes(
+                keyword
+              )
+          );
+
+        if (!shouldBind) {
+          return;
+        }
+
+        element.dataset
+          .neetosRouterBound =
+          "1";
+
+        element.classList.add(
+          "neetos-click"
+        );
+
+        element.addEventListener(
+          "click",
+          event => {
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            routeMoreAction(
+              text
+            );
+          }
+        );
+      }
+    );
+}
+
+
+/* =========================================================
+   DATE / WEEK / DAY AUTO REFRESH
+========================================================= */
+
+let lastCalendarDay =
+  calendarDayKey();
+
+let lastStudyDay =
+  getStudyDayKey();
+
+
+function monitorDateBoundary() {
+  const calendar =
+    calendarDayKey();
+
+  const study =
+    getStudyDayKey();
+
+  /*
+     Midnight:
+     update only visible
+     calendar information.
+  */
+
+  if (
+    calendar !==
+    lastCalendarDay
+  ) {
+
+    lastCalendarDay =
+      calendar;
+
+    updateDateHeader();
+
+    updateHomeHeader();
+
+    updateHomeDashboard();
+  }
+
+  /*
+     03:00:
+     rollover study progress.
+  */
+
+  if (
+    study !==
+    lastStudyDay
+  ) {
+
+    lastStudyDay =
+      study;
+
+    checkDailyRollover();
+
+    refreshAllUI();
+  }
+}
+
+
+/* =========================================================
+   PROGRESS ARCHIVE SAFETY
+========================================================= */
+
+function archiveBeforeUnload() {
+  if (
+    !data ||
+    !data.date
+  ) {
+    return;
+  }
+
+  try {
+
+    /*
+       Don't archive current day
+       automatically here.
+
+       Just save current state.
+    */
+
+    saveData();
+
+  } catch (error) {
+
+    console.warn(
+      "NEET OS unload save warning:",
+      error
+    );
+  }
+}
+
+
+window.addEventListener(
+  "pagehide",
+  archiveBeforeUnload
+);
+
+
+/* =========================================================
+   VISIBILITY RECOVERY
+========================================================= */
+
+function recoverAfterSleep() {
+  if (!data) {
+    return;
+  }
+
+  checkDailyRollover();
+
+  updateDateHeader();
+
+  updateHomeHeader();
+
+  renderTasks();
+
+  updateProgress();
+
+  updateStats();
+
+  updateHomeDashboard();
+
+  updateActiveTimer();
+
+  updateTaskStatusLabels();
+
+  updateConnectionStatus();
+}
+
+
+document.addEventListener(
+  "visibilitychange",
+  () => {
+
+    if (
+      document.visibilityState ===
+      "visible"
+    ) {
+      recoverAfterSleep();
+    }
+  }
+);
+
+
+/* =========================================================
+   CLOCK CHANGE DETECTION
+========================================================= */
+
+let lastKnownMinute =
+  getCurrentMinutes();
+
+
+function detectClockChange() {
+  const current =
+    getCurrentMinutes();
+
+  if (
+    current !==
+    lastKnownMinute
+  ) {
+
+    lastKnownMinute =
+      current;
+
+    renderTasks();
+
+    updateProgress();
+
+    updateTaskStatusLabels();
+  }
+}
+
+
+/* =========================================================
+   FINAL SECONDARY LOOP
+========================================================= */
+
+setInterval(
+  () => {
+
+    if (!data) {
+      return;
+    }
+
+    monitorDateBoundary();
+
+    detectClockChange();
+
+    updateActiveTimer();
+
+    updateHomeDashboard();
+
+  },
+  1000
+);
+
+
+/* =========================================================
+   MANUAL REFRESH API
+========================================================= */
+
+window.NEETOS.refresh =
+  function () {
+
+    refreshAllUI();
+
+    renderSyllabus();
+
+    setupSubjectStatsButtons();
+
+    setupMoreExtraFeatures();
+
+    setupMoreActionRouter();
+
+    return true;
+  };
+
+
+/* =========================================================
+   REPORT API
+========================================================= */
+
+window.NEETOS.report =
+  function () {
+
+    return {
+      today:
+        buildDailySummary(),
+
+      targets:
+        getDailyTargetStatus(),
+
+      consistency:
+        getLast7DaysConsistency(),
+
+      bestStudy:
+        getBestStudySeconds(),
+
+      bestQuestions:
+        getBestQuestionCount()
+    };
+  };
+
+
+/* =========================================================
+   HISTORY API
+========================================================= */
+
+window.NEETOS.history =
+  function () {
+
+    return getHistoryWithCurrent()
+      .slice()
+      .reverse();
+  };
+
+
+/* =========================================================
+   SYLLABUS API
+========================================================= */
+
+window.NEETOS.syllabus =
+  function () {
+
+    return {
+      syllabus:
+        SYLLABUS,
+
+      completed:
+        getSyllabusState()
+    };
+  };
+
+
+/* =========================================================
+   TEST HELPERS
+========================================================= */
+
+window.NEETOS.testDate =
+  function () {
+
+    return {
+      calendarDate:
+        calendarDayKey(),
+
+      studyDay:
+        getStudyDayKey(),
+
+      week:
+        getWeekInfo()
+    };
+  };
+
+
+window.NEETOS.testRollover =
+  function () {
+
+    checkDailyRollover();
+
+    refreshAllUI();
+
+    return {
+      studyDay:
+        getStudyDayKey(),
+
+      dataDate:
+        data?.date
+    };
+  };
+
+
+/* =========================================================
+   END OF PART 3
+========================================================= *//* =========================================================
+   NEET OS — PART 4
+   FINAL EVENT BINDINGS + SAFETY
+========================================================= */
+
+
+/* =========================================================
+   EXTRA MORE MENU BINDINGS
+========================================================= */
+
+function bindMoreMenuActionsFinal() {
+
+  const items =
+    document.querySelectorAll(
+      "#moreSection .feature-row, " +
+      "#moreSection button, " +
+      "#moreSection .more-item"
+    );
+
+  items.forEach(
+    item => {
+
+      if (
+        item.dataset.neetosFinalBound
+      ) {
+        return;
+      }
+
+      const text =
+        (
+          item.textContent ||
+          ""
+        ).trim();
+
+      if (!text) {
+        return;
+      }
+
+      const lower =
+        text.toLowerCase();
+
+      let handler = null;
+
+      if (
+        lower.includes(
+          "notification"
+        ) ||
+        lower.includes(
+          "reminder"
+        )
+      ) {
+        handler =
+          openNotificationPanel;
+      }
+
+      else if (
+        lower.includes(
+          "daily summary"
+        ) ||
+        lower.includes(
+          "today summary"
+        )
+      ) {
+        handler =
+          openDailySummary;
+      }
+
+      else if (
+        lower.includes(
+          "daily target"
+        )
+      ) {
+        handler =
+          openDailyTargets;
+      }
+
+      else if (
+        lower.includes(
+          "missed task"
+        )
+      ) {
+        handler =
+          openMissedTasksEnhanced;
+      }
+
+      else if (
+        lower.includes(
+          "repair history"
+        )
+      ) {
+        handler =
+          openRepairLog;
+      }
+
+      else if (
+        lower.includes(
+          "study history"
+        )
+      ) {
+        handler =
+          openHistoryBrowser;
+      }
+
+      else if (
+        lower.includes(
+          "weekly report"
+        )
+      ) {
+        handler =
+          openWeekSelector;
+      }
+
+      else if (
+        lower.includes(
+          "monthly"
+        )
+      ) {
+        handler =
+          openMonthlyOverview;
+      }
+
+      else if (
+        lower.includes(
+          "consistency"
+        )
+      ) {
+        handler =
+          openConsistency;
+      }
+
+      else if (
+        lower.includes(
+          "task breakdown"
+        )
+      ) {
+        handler =
+          openTaskBreakdown;
+      }
+
+      else if (
+        lower.includes(
+          "sunday test"
+        )
+      ) {
+        handler =
+          openSundayTest;
+      }
+
+      else if (
+        lower.includes(
+          "analytics"
+        )
+      ) {
+        handler =
+          openAnalytics;
+      }
+
+      else if (
+        lower.includes(
+          "personal best"
+        )
+      ) {
+        handler =
+          openPersonalBest;
+      }
+
+      else if (
+        lower.includes(
+          "sleep"
+        )
+      ) {
+        handler =
+          openSleepTracking;
+      }
+
+      else if (
+        lower.includes(
+          "storage"
+        )
+      ) {
+        handler =
+          openStorageStatus;
+      }
+
+      else if (
+        lower.includes(
+          "backup"
+        )
+      ) {
+        handler =
+          openBackup;
+      }
+
+      else if (
+        lower.includes(
+          "setting"
+        )
+      ) {
+        handler =
+          openSettings;
+      }
+
+      if (
+        typeof handler !==
+        "function"
+      ) {
+        return;
+      }
+
+      item.dataset
+        .neetosFinalBound =
+        "1";
+
+      item.classList.add(
+        "neetos-click"
+      );
+
+      item.addEventListener(
+        "click",
+        event => {
+
+          event.preventDefault();
+
+          event.stopPropagation();
+
+          handler();
+
+        }
+      );
+    }
+  );
+}
+
+
+/* =========================================================
+   QUICK STATS
+========================================================= */
+
+function updateQuickStats() {
+
+  const completed =
+    getCompletedTaskCount();
+
+  const questions =
+    getTotalQuestions();
+
+  const studySeconds =
+    getTotalStudySeconds();
+
+  const values = {
+    completed,
+    questions,
+    studySeconds
+  };
+
+
+  document
+    .querySelectorAll(
+      "[data-quick-stat]"
+    )
+    .forEach(
+      element => {
+
+        const type =
+          element.dataset
+            .quickStat;
+
+        if (
+          type ===
+          "completed"
+        ) {
+          element.textContent =
+            completed;
+        }
+
+        else if (
+          type ===
+          "questions"
+        ) {
+          element.textContent =
+            questions;
+        }
+
+        else if (
+          type ===
+          "study"
+        ) {
+          element.textContent =
+            shortDuration(
+              studySeconds
+            );
+        }
+
+      }
+    );
+
+  return values;
+}
+
+
+/* =========================================================
+   TASK CARD EXTRA INFORMATION
+========================================================= */
+
+function updateTaskCardsFinal() {
+
+  document
+    .querySelectorAll(
+      ".start-button"
+    )
+    .forEach(
+      (button, index) => {
+
+        const task =
+          tasks[index];
+
+        if (!task) {
+          return;
+        }
+
+        const card =
+          getTaskCard(button);
+
+        if (!card) {
+          return;
+        }
+
+        /*
+           Add/update status.
+        */
+
+        let status =
+          card.querySelector(
+            ".neetos-task-status"
+          );
+
+        if (!status) {
+
+          status =
+            document.createElement(
+              "div"
+            );
+
+          status.className =
+            "neetos-task-status";
+
+          status.style.fontSize =
+            "12px";
+
+          status.style.opacity =
+            "0.7";
+
+          status.style.marginTop =
+            "5px";
+
+          const parent =
+            button.parentElement ||
+            card;
+
+          parent.appendChild(
+            status
+          );
+        }
+
+        status.textContent =
+          taskStatusText(
+            index
+          );
+
+
+        /*
+           Add study time.
+        */
+
+        let time =
+          card.querySelector(
+            ".neetos-study-time"
+          );
+
+        if (!time) {
+
+          time =
+            document.createElement(
+              "div"
+            );
+
+          time.className =
+            "neetos-study-time";
+
+          time.style.fontSize =
+            "11px";
+
+          time.style.opacity =
+            "0.55";
+
+          const parent =
+            button.parentElement ||
+            card;
+
+          parent.appendChild(
+            time
+          );
+        }
+
+        time.textContent =
+          "Study: " +
+          shortDuration(
+            getTaskStudySeconds(
+              index
+            )
+          );
+
+
+        /*
+           Question count.
+        */
+
+        if (task.target) {
+
+          let question =
+            card.querySelector(
+              ".neetos-question-count"
+            );
+
+          if (!question) {
+
+            question =
+              document.createElement(
+                "div"
+              );
+
+            question.className =
+              "neetos-question-count";
+
+            question.style.fontSize =
+              "11px";
+
+            question.style.opacity =
+              "0.55";
+
+            const parent =
+              button.parentElement ||
+              card;
+
+            parent.appendChild(
+              question
+            );
+          }
+
+          question.textContent =
+            `Questions: ${
+              getTaskQuestionCount(
+                index
+              )
+            } / ${
+              task.target
+            }`;
+        }
+
+      }
+    );
+}
+
+
+/* =========================================================
+   DAILY DATE DISPLAY
+========================================================= */
+
+function updateAllDateElements() {
+
+  const calendar =
+    calendarDayKey();
+
+  const study =
+    getStudyDayKey();
+
+  const info =
+    getWeekInfo(
+      calendar
+    );
+
+  const dateObject =
+    parseDate(
+      calendar
+    );
+
+  const formattedDate =
+    dateObject.toLocaleDateString(
+      "en-IN",
+      {
+        day:
+          "numeric",
+
+        month:
+          "long",
+
+        year:
+          "numeric"
+      }
+    );
+
+
+  /*
+     Calendar date.
+  */
+
+  document
+    .querySelectorAll(
+      "[data-calendar-date]"
+    )
+    .forEach(
+      element => {
+        element.textContent =
+          formattedDate;
+      }
+    );
+
+
+  /*
+     Week.
+  */
+
+  document
+    .querySelectorAll(
+      "[data-calendar-week]"
+    )
+    .forEach(
+      element => {
+        element.textContent =
+          `Week ${info.week}`;
+      }
+    );
+
+
+  /*
+     Day.
+  */
+
+  document
+    .querySelectorAll(
+      "[data-calendar-day]"
+    )
+    .forEach(
+      element => {
+        element.textContent =
+          `Day ${info.day}`;
+      }
+    );
+
+
+  /*
+     Study day.
+
+     This deliberately uses
+     getStudyDayKey() because
+     study day changes only
+     at 03:00.
+  */
+
+  document
+    .querySelectorAll(
+      "[data-study-day]"
+    )
+    .forEach(
+      element => {
+        element.textContent =
+          study;
+      }
+    );
+
+
+  return {
+    calendar,
+    study,
+    week:
+      info.week,
+    day:
+      info.day
+  };
+}
+
+
+/* =========================================================
+   SELF STUDY — REPEATED SESSIONS
+========================================================= */
+
+/*
+   IMPORTANT:
+
+   Self Study is NOT one of the
+   8 scheduled completion tasks.
+
+   It can be started repeatedly.
+
+   Every session adds to
+   studySeconds.
+
+   Stopping Self Study does NOT
+   permanently mark it Done.
+*/
+
+function startSelfStudy() {
+
+  const index =
+    tasks.findIndex(
+      task =>
+        task.type ===
+        "self-study"
+    );
+
+  if (
+    index < 0
+  ) {
+    return;
+  }
+
+  if (
+    data.activeTask !==
+    null
+  ) {
+
+    alert(
+      "Another study session is already running."
+    );
+
+    return;
+  }
+
+  data.activeTask =
+    index;
+
+  data.activeStartTime =
+    Date.now();
+
+  /*
+     Never use completed[]
+     for Self Study.
+  */
+
+  delete data.completed[
+    index
+  ];
+
+  saveData();
+
+  renderTasks();
+
+  updateProgress();
+
+  updateStats();
+}
+
+
+/* =========================================================
+   SELF STUDY STOP
+========================================================= */
+
+function stopSelfStudy(
+  index
+) {
+
+  if (
+    data.activeTask !==
+    index
+  ) {
+    return;
+  }
+
+  const elapsed =
+    data.activeStartTime
+      ? Math.max(
+          0,
+          Math.floor(
+            (
+              Date.now() -
+              data.activeStartTime
+            ) / 1000
+          )
+        )
+      : 0;
+
+  data.studySeconds[index] =
+    Number(
+      data.studySeconds[index] ||
+        0
+    ) + elapsed;
+
+  data.activeTask =
+    null;
+
+  data.activeStartTime =
+    null;
+
+  /*
+     Self Study is repeatable.
+
+     Therefore:
+     DO NOT set completed[index]
+     to true.
+  */
+
+  delete data.completed[
+    index
+  ];
+
+  saveData();
+
+  renderTasks();
+
+  updateProgress();
+
+  updateStats();
+
+  updateHomeDashboard();
+}
+
+
+/* =========================================================
+   PATCH SELF STUDY START BUTTON
+========================================================= */
+
+function patchSelfStudyBehavior() {
+
+  const index =
+    tasks.findIndex(
+      task =>
+        task.type ===
+        "self-study"
+    );
+
+  if (
+    index < 0
+  ) {
+    return;
+  }
+
+  document
+    .querySelectorAll(
+      ".start-button"
+    )
+    .forEach(
+      (button, buttonIndex) => {
+
+        if (
+          buttonIndex !==
+          index
+        ) {
+          return;
+        }
+
+        /*
+           Existing listener may already
+           exist, so we cannot remove it.
+
+           Instead, make sure the task
+           is never shown as permanently
+           completed.
+        */
+
+        if (
+          data.activeTask !==
+          index
+        ) {
+          delete data.completed[
+            index
+          ];
+        }
+
+        button.disabled =
+          data.activeTask !== null &&
+          data.activeTask !== index;
+
+        button.textContent =
+          data.activeTask === index
+            ? "Stop"
+            : "Start";
+
+        button.style.opacity =
+          data.activeTask === index ||
+          data.activeTask === null
+            ? "1"
+            : "0.45";
+      }
+    );
+}
+
+
+/* =========================================================
+   PATCH STOP TASK FOR SELF STUDY
+========================================================= */
+
+const originalStopTask =
+  stopTask;
+
+stopTask =
+  function(index) {
+
+    const task =
+      tasks[index];
+
+    if (
+      task?.type ===
+      "self-study"
+    ) {
+
+      stopSelfStudy(
+        index
+      );
+
+      return;
+    }
+
+    originalStopTask(
+      index
+    );
+  };
+
+
+/* =========================================================
+   PATCH START TASK FOR SELF STUDY
+========================================================= */
+
+const originalStartTask =
+  startTask;
+
+startTask =
+  function(
+    index,
+    ignoreTime = false
+  ) {
+
+    const task =
+      tasks[index];
+
+    if (
+      task?.type ===
+      "self-study"
+    ) {
+
+      startSelfStudy();
+
+      return;
+    }
+
+    originalStartTask(
+      index,
+      ignoreTime
+    );
+  };
+
+
+/* =========================================================
+   PATCH RENDER TASKS FOR SELF STUDY
+========================================================= */
+
+const originalRenderTasks =
+  renderTasks;
+
+renderTasks =
+  function() {
+
+    originalRenderTasks();
+
+    patchSelfStudyBehavior();
+
+    updateTaskCardsFinal();
+  };
+
+
+/* =========================================================
+   REFRESH ALL FINAL UI
+========================================================= */
+
+function finalRefresh() {
+
+  try {
+
+    checkDailyRollover();
+
+    updateDateHeader();
+
+    updateHomeHeader();
+
+    updateAllDateElements();
+
+    renderTasks();
+
+    updateProgress();
+
+    updateStats();
+
+    updateHomeDashboard();
+
+    updateQuickStats();
+
+    updateActiveTimer();
+
+    updateTaskStatusLabels();
+
+    updateTaskCardsFinal();
+
+    updateConnectionStatus();
+
+  } catch (
+    error
+  ) {
+
+    console.error(
+      "NEET OS final refresh error:",
+      error
+    );
+  }
+}
+
+
+/* =========================================================
+   FINAL MENU SETUP
+========================================================= */
+
+function finalMenuSetup() {
+
+  try {
+
+    setupMoreActionRouter();
+
+    bindMoreMenuActionsFinal();
+
+    setupSubjectStatsButtons();
+
+  } catch (
+    error
+  ) {
+
+    console.warn(
+      "NEET OS menu setup warning:",
+      error
+    );
+  }
+}
+
+
+/* =========================================================
+   FINAL INITIALIZATION
+========================================================= */
+
+function runFinalSetup() {
+
+  if (!data) {
+    return;
+  }
+
+  finalMenuSetup();
+
+  finalRefresh();
+
+  /*
+     Make sure notification
+     permission state is reflected.
+  */
+
+  const settings =
+    getSettings();
+
+  if (
+    settings.notifications &&
+    "Notification" in window &&
+    Notification.permission ===
+      "granted"
+  ) {
+
+    console.log(
+      "NEET OS reminders are enabled."
+    );
+  }
+
+
+  /*
+     Storage diagnostic.
+  */
+
+  if (
+    window.NEETOSStorage
+  ) {
+
+    console.log(
+      "NEET OS storage:",
+      window.NEETOSStorage.status()
+    );
+  }
+
+
+  console.log(
+    "NEET OS final setup complete."
+  );
+}
+
+
+/*
+   Give the browser a moment
+   after the existing DOM setup.
+*/
+
+setTimeout(
+  runFinalSetup,
+  100
+);
+
+
+/* =========================================================
+   FINAL LIVE LOOP
+========================================================= */
+
+setInterval(
+  () => {
+
+    if (!data) {
+      return;
+    }
+
+    /*
+       Midnight calendar update.
+    */
+
+    const calendar =
+      calendarDayKey();
+
+    if (
+      calendar !==
+      lastCalendarDay
+    ) {
+
+      lastCalendarDay =
+        calendar;
+
+      updateDateHeader();
+
+      updateHomeHeader();
+
+      updateAllDateElements();
+
+      updateHomeDashboard();
+    }
+
+
+    /*
+       03:00 study-day rollover.
+    */
+
+    const study =
+      getStudyDayKey();
+
+    if (
+      study !==
+      lastStudyDay
+    ) {
+
+      lastStudyDay =
+        study;
+
+      checkDailyRollover();
+
+      finalRefresh();
+    }
+
+
+    /*
+       Normal live UI.
+    */
+
+    updateActiveTimer();
+
+    updateHomeDashboard();
+
+    updateQuickStats();
+
+    updateTaskStatusLabels();
+
+    updateTaskCardsFinal();
+
+    patchSelfStudyBehavior();
+
+  },
+  1000
+);
+
+
+/* =========================================================
+   FINAL NOTIFICATION LOOP
+========================================================= */
+
+let lastNotificationCheck =
+  0;
+
+
+setInterval(
+  () => {
+
+    const now =
+      Date.now();
+
+    /*
+       Prevent excessive calls.
+    */
+
+    if (
+      now -
+        lastNotificationCheck <
+      15000
+    ) {
+      return;
+    }
+
+    lastNotificationCheck =
+      now;
+
+    void maybeNotifySchedule();
+
+  },
+  15000
+);
+
+
+/* =========================================================
+   PAGE FOCUS RECOVERY
+========================================================= */
+
+window.addEventListener(
+  "focus",
+  () => {
+
+    if (!data) {
+      return;
+    }
+
+    finalRefresh();
+
+    finalMenuSetup();
+
+  }
+);
+
+
+/* =========================================================
+   MOBILE APP RECOVERY
+========================================================= */
+
+window.addEventListener(
+  "pageshow",
+  () => {
+
+    if (!data) {
+      return;
+    }
+
+    finalRefresh();
+
+  }
+);
+
+
+/* =========================================================
+   BEFORE REFRESH SAFETY
+========================================================= */
+
+function saveCurrentSessionSafely() {
+
+  if (
+    !data
+  ) {
+    return;
+  }
+
+  /*
+     Do not permanently stop
+     an active session.
+
+     Save accumulated time up
+     to this exact moment, then
+     restart the clock.
+  */
+
+  if (
+    data.activeTask !==
+      null &&
+    data.activeStartTime
+  ) {
+
+    const index =
+      data.activeTask;
+
+    const elapsed =
+      Math.max(
+        0,
+        Math.floor(
+          (
+            Date.now() -
+            data.activeStartTime
+          ) / 1000
+        )
+      );
+
+    data.studySeconds[index] =
+      Number(
+        data.studySeconds[index] ||
+          0
+      ) + elapsed;
+
+    data.activeStartTime =
+      Date.now();
+  }
+
+  saveData();
+}
+
+
+window.addEventListener(
+  "beforeunload",
+  saveCurrentSessionSafely
+);
+
+window.addEventListener(
+  "pagehide",
+  saveCurrentSessionSafely
+);
+
+
+/* =========================================================
+   EXPORT SHORTCUT
+========================================================= */
+
+window.addEventListener(
+  "keydown",
+  event => {
+
+    if (
+      event.ctrlKey &&
+      event.shiftKey &&
+      event.key.toLowerCase() ===
+        "e"
+    ) {
+
+      event.preventDefault();
+
+      exportBackup();
+    }
+  }
+);
+
+
+/* =========================================================
+   FINAL DEBUG COMMANDS
+========================================================= */
+
+window.NEETOS.finalCheck =
+  function() {
+
+    return {
+      app:
+        "NEET OS",
+
+      calendarDate:
+        calendarDayKey(),
+
+      studyDay:
+        getStudyDayKey(),
+
+      week:
+        getWeekInfo().week,
+
+      day:
+        getWeekInfo().day,
+
+      completedTasks:
+        getCompletedTaskCount(),
+
+      scheduledTasks:
+        8,
+
+      totalStudySeconds:
+        getTotalStudySeconds(),
+
+      totalQuestions:
+        getTotalQuestions(),
+
+      activeTask:
+        data?.activeTask,
+
+      selfStudySeconds:
+        (() => {
+
+          const index =
+            tasks.findIndex(
+              task =>
+                task.type ===
+                "self-study"
+            );
+
+          return index >= 0
+            ? getTaskStudySeconds(
+                index
+              )
+            : 0;
+        })(),
+
+      storage:
+        window.NEETOSStorage
+          ?.status?.()
+    };
+};
+
+
+/* =========================================================
+   FINAL SAFETY — KEEP SELF STUDY REPEATABLE
+========================================================= */
+
+setInterval(
+  () => {
+
+    if (!data) {
+      return;
+    }
+
+    const selfStudyIndex =
+      tasks.findIndex(
+        task =>
+          task.type ===
+          "self-study"
+      );
+
+    if (
+      selfStudyIndex >= 0 &&
+      data.activeTask !==
+        selfStudyIndex
+    ) {
+
+      /*
+         Self Study must never
+         become a permanently
+         completed scheduled task.
+      */
+
+      if (
+        data.completed[
+          selfStudyIndex
+        ]
+      ) {
+
+        delete data.completed[
+          selfStudyIndex
+        ];
+
+        saveData();
+      }
+    }
+
+  },
+  5000
+);
+
+
+/* =========================================================
+   CREATOR
+========================================================= */
+
+console.log(
+  "NEET OS — Created by Dibyendu"
+);
+
+
+/* =========================================================
+   END OF PART 4 / 4
+========================================================= */
